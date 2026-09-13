@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>КТО ПРЕДАТЕЛЬ — Игровая комната</title>
+<style>
+:root{--bg:#070a0f;--panel:#10151d;--panel2:#151c26;--line:#26313f;--text:#eef3f8;--muted:#8793a3;--green:#64e6a4;--red:#ff5d6c;--yellow:#ffd166;--blue:#71a8ff}
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 50% -10%,#1a2638 0,#080b11 42%,#05070a 100%);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;border:0;cursor:pointer}.app{max-width:760px;margin:auto;padding:18px 14px 32px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.tiny{font-size:11px;letter-spacing:2px;color:#718093}.status{font-size:11px;color:var(--green);border:1px solid #285f49;padding:6px 9px;border-radius:999px;background:#0c2019}
+h1{font-size:27px;letter-spacing:2px;margin:0 0 4px}.sub{color:var(--muted);font-size:13px}.room{margin-top:16px;padding:15px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,#111a25,#0d1219);display:flex;justify-content:space-between;align-items:center}.room strong{font-size:24px;letter-spacing:3px}.room small{display:block;color:var(--muted);margin-bottom:3px}.copy{background:#1d2734;border:1px solid #334252;border-radius:11px;padding:9px 12px}
+.grid{display:grid;grid-template-columns:1.35fr .8fr;gap:12px;margin-top:12px}.card{background:rgba(15,21,29,.9);border:1px solid var(--line);border-radius:18px;padding:15px}.card h2{font-size:13px;margin:0 0 12px;letter-spacing:1px;text-transform:uppercase;color:#aab5c3}
+.task{padding:14px;border-radius:15px;background:#121a24;border:1px solid #263443;margin-bottom:9px;position:relative;overflow:hidden}.task.done{border-color:#275d48;background:#0e1d18}.task h3{margin:0 0 5px;font-size:15px}.task p{margin:0;color:var(--muted);font-size:12px;line-height:1.4}.task .tag{position:absolute;right:10px;top:10px;font-size:10px;color:var(--yellow)}.task button{margin-top:11px;width:100%;padding:10px;border-radius:10px;background:#202c3a;border:1px solid #334457}.task.done button{background:#153a2c;color:var(--green);border-color:#275d48}
+.progress{height:7px;background:#202a36;border-radius:10px;overflow:hidden;margin:8px 0 15px}.bar{height:100%;width:35%;background:linear-gradient(90deg,#4bdc98,#78efb0);transition:.4s}
+.player{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #202934}.player:last-child{border-bottom:0}.ava{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#273548;font-size:13px;font-weight:700}.me{outline:2px solid #4773a9}.pname{font-size:13px;flex:1}.role-dot{width:7px;height:7px;border-radius:50%;background:#596777}.self{font-size:10px;color:var(--blue)}
+.event{padding:10px 0;border-bottom:1px solid #202934;font-size:12px}.event span{color:var(--muted)}.danger{color:var(--red)}.good{color:var(--green)}
+.actions{display:flex;gap:8px;margin-top:10px}.action{flex:1;padding:11px;border-radius:11px;background:#182230;border:1px solid #2b3949;font-size:12px}.action.active{border-color:#5d82b5;background:#1a2b41}
+.bottom{position:sticky;bottom:10px;margin-top:12px;padding:10px;border:1px solid var(--line);border-radius:17px;background:rgba(10,14,20,.94);backdrop-filter:blur(14px);display:flex;gap:8px}.mainbtn{flex:1;padding:13px;border-radius:12px;background:linear-gradient(135deg,#dfe8f2,#aebdcc);color:#071018;font-weight:800}.secondary{padding:13px 14px;border-radius:12px;background:#17202b;border:1px solid #2b3949}
+.overlay{position:fixed;inset:0;background:rgba(2,4,7,.75);backdrop-filter:blur(8px);display:none;align-items:flex-end;justify-content:center;padding:12px}.modal{width:min(760px,100%);background:#111821;border:1px solid #2a3745;border-radius:22px;padding:18px;box-shadow:0 20px 70px #000}.modal h2{margin:0 0 8px}.modal p{color:var(--muted);font-size:13px}.mini{display:grid;grid-template-columns:1fr 1fr;gap:9px}.mini button{padding:13px;border-radius:12px;background:#1a2531;border:1px solid #2c3b4b}.close{width:100%;margin-top:10px;padding:12px;border-radius:12px;background:#252f3b}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);opacity:0;background:#e8eef5;color:#071018;padding:10px 14px;border-radius:12px;font-size:12px;font-weight:700;transition:.25s;pointer-events:none}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:650px){.grid{grid-template-columns:1fr}.app{padding-bottom:100px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div class="tiny">SECRET FACILITY // 01</div><div class="status">● СВЯЗЬ ОНЛАЙН</div></div>
+  <h1>КТО ПРЕДАТЕЛЬ?</h1><div class="sub">Игровая комната · смена 01 · объект «ОРИОН»</div>
+  <div class="room"><div><small>КОМНАТА</small><strong>#4827</strong></div><button class="copy" onclick="copyRoom()">Скопировать</button></div>
+
+  <div class="grid">
+    <main>
+      <section class="card">
+        <h2>Состояние объекта</h2>
+        <div style="display:flex;justify-content:space-between;font-size:12px"><span>Стабильность систем</span><b id="pct">35%</b></div>
+        <div class="progress"><div class="bar" id="bar"></div></div>
+
+        <div class="task" id="t1"><span class="tag">ЭНЕРГИЯ</span><h3>Перезапустить генератор</h3><p>Синхронизируйте 3 переключателя и верните питание в сектор B.</p><button onclick="task(1)">Выполнить задачу</button></div>
+        <div class="task" id="t2"><span class="tag">СВЯЗЬ</span><h3>Починить ретранслятор</h3><p>Восстановите канал связи. Нажимайте кнопки в правильной последовательности.</p><button onclick="task(2)">Выполнить задачу</button></div>
+        <div class="task" id="t3"><span class="tag">ОБЪЕКТ</span><h3>Проверить охлаждение</h3><p>Найдите перегретый контур и стабилизируйте температуру.</p><button onclick="task(3)">Выполнить задачу</button></div>
+
+        <div class="actions">
+          <button class="action" onclick="doAction('Исследование сектора')">🔎 Исследовать</button>
+          <button class="action" onclick="doAction('Защита системы')">🛡 Защитить</button>
+          <button class="action" onclick="doAction('Передача ресурса')">📦 Ресурс</button>
+        </div>
+      </section>
+
+      <section class="card" style="margin-top:12px">
+        <h2>Журнал объекта</h2>
+        <div id="log">
+          <div class="event"><b class="danger">ТРЕВОГА</b> <span>— нестабильность в секторе B.</span></div>
+          <div class="event"><b>Система</b> <span>— команда прибыла на объект.</span></div>
+        </div>
+      </section>
+    </main>
+
+    <aside>
+      <section class="card"><h2>Команда · 4/8</h2>
+        <div class="player"><div class="ava me">А</div><div class="pname">Алекс <span class="self">ВЫ</span></div><div class="role-dot"></div></div>
+        <div class="player"><div class="ava">М</div><div class="pname">Максим</div><div class="role-dot"></div></div>
+        <div class="player"><div class="ava">К</div><div class="pname">Катя</div><div class="role-dot"></div></div>
+        <div class="player"><div class="ava">Д</div><div class="pname">Денис</div><div class="role-dot"></div></div>
+      </section>
+
+      <section class="card" style="margin-top:12px"><h2>Раунд</h2>
+        <div style="font-size:25px;font-weight:800">01 <span style="font-size:12px;color:var(--muted)">/ 06</span></div>
+        <p style="color:var(--muted);font-size:12px;margin-bottom:0">Выполняйте задачи. Следите за журналом. Кто-то уже может саботировать объект.</p>
+      </section>
+
+      <section class="card" style="margin-top:12px"><h2>Что можно делать</h2>
+        <p style="margin:0;color:var(--muted);font-size:12px;line-height:1.55">Выполнять задачи → улучшать стабильность.<br>Исследовать → получать информацию.<br>Защищать → снижать риск саботажа.<br>Собирать ресурсы → открывать новые действия.</p>
+      </section>
+    </aside>
+  </div>
+
+  <div class="bottom"><button class="secondary" onclick="openModal()">☰</button><button class="mainbtn" onclick="finishRound()">ЗАВЕРШИТЬ ДЕЙСТВИЕ</button></div>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal"><h2>Действия игрока</h2><p>Это уже рабочий прототип игровой комнаты: здесь можно выполнять задачи, менять состояние объекта и видеть журнал.</p><div class="mini"><button onclick="doAction('Сканирование')">📡 Сканирование</button><button onclick="doAction('Проверка журнала')">📋 Журнал</button><button onclick="doAction('Сигнал команде')">📣 Сигнал</button><button onclick="doAction('Ожидание')">⏱ Ожидать</button></div><button class="close" onclick="closeModal()">Закрыть</button></div></div>
+<div class="toast" id="toast"></div>
+<script>
+let progress=35, done=0;
+function toast(t){const x=document.getElementById('toast');x.textContent=t;x.classList.add('show');setTimeout(()=>x.classList.remove('show'),1600)}
+function log(t,cls=''){const el=document.getElementById('log');el.insertAdjacentHTML('afterbegin',`<div class="event"><b class="${cls}">${t}</b> <span>— действие игрока зафиксировано.</span></div>`)}
+function task(n){
+ const el=document.getElementById('t'+n); if(el.classList.contains('done')) return;
+ el.classList.add('done'); el.querySelector('button').textContent='✓ Задача выполнена';
+ progress=Math.min(100,progress+18); done++;
+ document.getElementById('pct').textContent=progress+'%';document.getElementById('bar').style.width=progress+'%';
+ log(['','Генератор перезапущен','Ретранслятор восстановлен','Охлаждение стабилизировано'][n],'good'); toast('Задача выполнена · +18% стабильности');
+}
+function doAction(a){log(a);toast(a+' выполнено');closeModal()}
+function finishRound(){if(done<1){toast('Сначала выполните хотя бы одну задачу');return} log('Действие завершено','good');toast('Действие отправлено · ждём остальных игроков')}
+function copyRoom(){navigator.clipboard?.writeText('4827');toast('Номер комнаты скопирован')}
+function openModal(){document.getElementById('overlay').style.display='flex'}
+function closeModal(){document.getElementById('overlay').style.display='none'}
+document.getElementById('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')closeModal()})
+</script>
+</body></html>
