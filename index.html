@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contraband Checkpoint</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+  #game {
+    width: 900px;
+    height: 650px;
+    background: #2a2a2a;
+    border: 4px solid #444;
+    border-radius: 8px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8);
+  }
+  #hud {
+    background: #111;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 2px solid #444;
+    font-size: 14px;
+  }
+  #hud span { color: #ffcc00; }
+  #scene {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(#3a4a5a, #5a6a7a 60%, #4a5a4a 60%, #3a4a3a);
+    overflow: hidden;
+  }
+  #road {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 60%;
+    background: #2a2a2a;
+    clip-path: polygon(35% 0, 65% 0, 100% 100%, 0 100%);
+  }
+  #road::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: repeating-linear-gradient(#ffcc00 0 20px, transparent 20px 40px);
+    transform: translateX(-50%);
+  }
+  #car {
+    position: absolute;
+    bottom: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 160px;
+    height: 80px;
+    background: #8b1a1a;
+    border-radius: 10px 10px 4px 4px;
+    transition: all 0.5s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  }
+  #car::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    right: 15px;
+    height: 30px;
+    background: #2a3a4a;
+    border-radius: 4px;
+    box-shadow: inset 0 0 10px rgba(100,150,200,0.3);
+  }
+  #car::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 15px;
+    width: 30px;
+    height: 18px;
+    background: #111;
+    border-radius: 50%;
+    box-shadow: 100px 0 0 #111;
+  }
+  #driver {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30px;
+    height: 30px;
+    background: #c9a57a;
+    border-radius: 50%;
+    opacity: 0.9;
+  }
+  #barrier {
+    position: absolute;
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 340px;
+    height: 10px;
+    background: repeating-linear-gradient(90deg, #ffcc00 0 20px, #d32f2f 20px 40px);
+    border-radius: 4px;
+    z-index: 5;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+  }
+  #barrier.open {
+    transform: translateX(-50%) translateY(-200px) rotate(45deg);
+    transform-origin: left center;
+  }
+  #booth {
+    position: absolute;
+    bottom: 20%;
+    left: 30px;
+    width: 120px;
+    height: 180px;
+    background: #4a4a4a;
+    border: 3px solid #333;
+    border-radius: 6px 6px 0 0;
+  }
+  #booth::before {
+    content: 'КПП';
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #ffcc00;
+    font-weight: bold;
+    font-size: 18px;
+  }
+  #booth::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 10px;
+    right: 10px;
+    height: 60px;
+    background: #1a2a3a;
+    border: 2px solid #555;
+  }
+  #panel {
+    background: #1a1a1a;
+    border-top: 3px solid #444;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    min-height: 180px;
+  }
+  .card {
+    background: #222;
+    border: 2px solid #444;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 13px;
+  }
+  .card h3 {
+    color: #ffcc00;
+    font-size: 14px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 4px;
+  }
+  .row { display: flex; justify-content: space-between; margin: 3px 0; }
+  .label { color: #888; }
+  .value { color: #e0e0e0; }
+  .value.bad { color: #ff5252; }
+  .value.good { color: #4caf50; }
+  .btn {
+    background: #333;
+    color: #ffcc00;
+    border: 2px solid #ffcc00;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    font-weight: bold;
+  }
+  .btn:hover { background: #ffcc00; color: #111; }
+  .btn.danger { border-color: #ff5252; color: #ff5252; }
+  .btn.danger:hover { background: #ff5252; color: #111; }
+  .btn.success { border-color: #4caf50; color: #4caf50; }
+  .btn.success:hover { background: #4caf50; color: #111; }
+  .actions { display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+  #log {
+    position: absolute;
+    top: 60px;
+    right: 15px;
+    width: 260px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: rgba(0,0,0,0.75);
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 12px;
+    z-index: 10;
+  }
+  #log div { margin: 3px 0; padding: 2px 4px; border-left: 2px solid #666; }
+  #log .ok { border-color: #4caf50; color: #a5d6a7; }
+  #log .err { border-color: #ff5252; color: #ef9a9a; }
+  #log .info { border-color: #ffcc00; color: #ffe082; }
+  #gameover {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    text-align: center;
+  }
+  #gameover.show { display: flex; }
+  #gameover h1 { color: #ff5252; font-size: 48px; margin-bottom: 20px; }
+  #gameover p { font-size: 18px; margin: 10px 0; color: #ccc; }
+  #gameover .btn { margin-top: 20px; font-size: 16px; padding: 12px 30px; }
+  #start {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    text-align: center;
+    padding: 40px;
+  }
+  #start.hide { display: none; }
+  #start h1 { color: #ffcc00; font-size: 42px; margin-bottom: 10px; letter-spacing: 4px; }
+  #start h2 { color: #888; font-size: 16px; margin-bottom: 30px; letter-spacing: 8px; }
+  #start p { color: #aaa; max-width: 600px; line-height: 1.6; margin: 8px 0; }
+  #start .btn { margin-top: 30px; font-size: 18px; padding: 14px 40px; }
+  .stamp {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-15deg) scale(0);
+    font-size: 72px;
+    font-weight: bold;
+    color: #4caf50;
+    border: 6px solid #4caf50;
+    padding: 10px 30px;
+    border-radius: 10px;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.3s;
+  }
+  .stamp.show { transform: translate(-50%, -50%) rotate(-15deg) scale(1); opacity: 1; }
+  .stamp.deny { color: #ff5252; border-color: #ff5252; }
+</style>
+</head>
+<body>
+<div id="game">
+
+  <div id="hud">
+    <div>💰 Деньги: <span id="money">500</span></div>
+    <div>📅 День: <span id="day">1</span></div>
+    <div>✅ Пропущено: <span id="passed">0</span></div>
+    <div>❌ Отказано: <span id="denied">0</span></div>
+    <div>⭐ Репутация: <span id="rep">100</span>%</div>
+  </div>
+
+  <div id="scene">
+    <div id="road"></div>
+    <div id="booth"></div>
+    <div id="barrier"></div>
+    <div id="car">
+      <div id="driver"></div>
+    </div>
+    <div id="log"></div>
+    <div class="stamp" id="stamp">ПРОПУСК</div>
+  </div>
+
+  <div id="panel">
+    <div class="card">
+      <h3>📋 Документы</h3>
+      <div class="row"><span class="label">Имя:</span><span class="value" id="docName">—</span></div>
+      <div class="row"><span class="label">Страна:</span><span class="value" id="docCountry">—</span></div>
+      <div class="row"><span class="label">Цель:</span><span class="value" id="docPurpose">—</span></div>
+      <div class="row"><span class="label">Срок:</span><span class="value" id="docExpiry">—</span></div>
+      <div class="row"><span class="label">Фото:</span><span class="value" id="docPhoto">—</span></div>
+    </div>
+
+    <div class="card">
+      <h3>🚗 Досмотр</h3>
+      <div class="row"><span class="label">Багаж:</span><span class="value" id="scanTrunk">—</span></div>
+      <div class="row"><span class="label">Салон:</span><span class="value" id="scanCabin">—</span></div>
+      <div class="row"><span class="label">Топливо:</span><span class="value" id="scanFuel">—</span></div>
+      <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn" id="btnScanTrunk" style="font-size:11px; padding:6px 8px;">🔦 Багаж</button>
+        <button class="btn" id="btnScanCabin" style="font-size:11px; padding:6px 8px;">🔦 Салон</button>
+        <button class="btn" id="btnScanFuel" style="font-size:11px; padding:6px 8px;">⛽ Топливо</button>
+      </div>
+    </div>
+
+    <div class="card actions">
+      <h3>⚖️ Решение</h3>
+      <button class="btn success" id="btnPass">✅ ПРОПУСТИТЬ</button>
+      <button class="btn danger" id="btnDeny">❌ ОТКАЗАТЬ</button>
+      <button class="btn" id="btnNext" style="display:none;">➡️ Следующий</button>
+    </div>
+  </div>
+
+  <div id="gameover">
+    <h1>ИГРА ОКОНЧЕНА</h1>
+    <p id="goReason">—</p>
+    <p>Дней пройдено: <span id="goDays">0</span></p>
+    <p>Заработано: <span id="goMoney">0</span> ₽</p>
+    <button class="btn" id="btnRestart">🔄 ЗАНОВО</button>
+  </div>
+
+  <div id="start">
+    <h1>CONTRABAND CHECKPOINT</h1>
+    <h2>ПОГРАНИЧНЫЙ КОНТРОЛЬ · 1981</h2>
+    <p>Вы — инспектор КПП в вымышленной стране Акаристан.</p>
+    <p>Проверяйте документы, досматривайте машины и не пропускайте контрабанду.</p>
+    <p style="color:#ffcc00;">⚠️ Ошибётесь 3 раза — вас уволят.</p>
+    <button class="btn" id="btnStart">НАЧАТЬ СЛУЖБУ</button>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   CONTRABAND CHECKPOINT — игра в одном файле
+   ============================================================ */
+
+const COUNTRIES = ["Акаристан", "Федерация", "Карикатка", "Обернаков"];
+const PURPOSES  = ["Туризм", "Работа", "Транзит", "Визит к родне", "Командировка"];
+const NAMES     = ["И. Петров", "А. Смирнов", "Д. Волков", "Е. Орлов", "С. Морозов",
+                   "М. Крылов", "Н. Белов", "К. Зайцев", "П. Соколов", "Л. Гусев"];
+const CONTRABAND = ["Наркотики", "Оружие", "Валюта", "Радиоаппаратура", "Спирт", "Антиквариат"];
+
+const state = {
+  money: 500,
+  day: 1,
+  passed: 0,
+  denied: 0,
+  reputation: 100,
+  strikes: 0,
+  current: null,
+  scanned: { trunk: false, cabin: false, fuel: false },
+  finished: false,
+};
+
+// ===== Генерация новой машины =====
+function newVehicle() {
+  const hasContraband = Math.random() < 0.45;
+  const docValid = Math.random() < 0.75;
+  const photoValid = Math.random() < 0.85;
+  const expiryValid = Math.random() < 0.85;
+
+  // Скрываем контрабанду в случайном месте
+  const hideSpot = ["trunk", "cabin", "fuel"][Math.floor(Math.random() * 3)];
+
+  return {
+    name: rnd(NAMES),
+    country: rnd(COUNTRIES),
+    purpose: rnd(PURPOSES),
+    expiry: expiryValid ? rnd(["2020", "2021", "2022", "2023"]) : rnd(["1975", "1978", "1979"]),
+    photo: photoValid ? "Совпадает" : "Не совпадает",
+    hasContraband,
+    hideSpot,
+    contrabandType: hasContraband ? rnd(CONTRABAND) : null,
+    docValid,
+    color: `hsl(${Math.floor(Math.random()*40)}, 60%, ${30+Math.floor(Math.random()*25)}%)`,
+  };
+}
+
+const rnd = arr => arr[Math.floor(Math.random() * arr.length)];
+
+// ===== Отрисовка =====
+function renderVehicle() {
+  const v = state.current;
+  document.getElementById("docName").textContent    = v.name;
+  document.getElementById("docCountry").textContent = v.country;
+  document.getElementById("docPurpose").textContent = v.purpose;
+  document.getElementById("docExpiry").textContent  = v.expiry;
+  document.getElementById("docExpiry").className    = "value " + (parseInt(v.expiry) < 1990 ? "bad" : "good");
+  document.getElementById("docPhoto").textContent   = v.photo;
+  document.getElementById("docPhoto").className     = "value " + (v.photo === "Совпадает" ? "good" : "bad");
+
+  document.getElementById("scanTrunk").textContent = "—";
+  document.getElementById("scanCabin").textContent = "—";
+  document.getElementById("scanFuel").textContent  = "—";
+  document.getElementById("scanTrunk").className = "value";
+  document.getElementById("scanCabin").className = "value";
+  document.getElementById("scanFuel").className  = "value";
+
+  document.getElementById("btnScanTrunk").style.display = "inline-block";
+  document.getElementById("btnScanCabin").style.display = "inline-block";
+  document.getElementById("btnScanFuel").style.display  = "inline-block";
+  document.getElementById("btnPass").style.display = "block";
+  document.getElementById("btnDeny").style.display = "block";
+  document.getElementById("btnNext").style.display = "none";
+
+  const car = document.getElementById("car");
+  car.style.background = v.color;
+  car.style.left = "50%";
+  car.style.opacity = "1";
+
+  const barrier = document.getElementById("barrier");
+  barrier.classList.remove("open");
+}
+
+// ===== Сканирование =====
+function scan(part) {
+  if (!state.current || state.finished) return;
+  const v = state.current;
+  if (state.scanned[part]) return;
+  state.scanned[part] = true;
+
+  const el = document.getElementById("scan" + capitalize(part));
+  el.className = "value";
+
+  if (v.hasContraband && v.hideSpot === part) {
+    el.textContent = "⚠️ " + v.contrabandType;
+    el.className = "value bad";
+    log(`Найден контрабандный груз: ${v.contrabandType}!`, "err");
+  } else {
+    el.textContent = "Чисто";
+    el.className = "value good";
+    log(`Досмотр (${partName(part)}): ничего не найдено.`, "info");
+  }
+}
+
+function capitalize(s) { return s[0].toUpperCase() + s.slice(1); }
+function partName(p) { return { trunk: "багаж", cabin: "салон", fuel: "топливо" }[p]; }
+
+// ===== Лог =====
+function log(text, cls = "info") {
+  const logEl = document.getElementById("log");
+  const div = document.createElement("div");
+  div.className = cls;
+  div.textContent = `[${state.day}] ${text}`;
+  logEl.prepend(div);
+  while (logEl.children.length > 20) logEl.lastChild.remove();
+}
+
+// ===== Решение =====
+function decide(pass) {
+  if (!state.current || state.finished) return;
+  const v = state.current;
+  const barrier = document.getElementById("barrier");
+  const stamp = document.getElementById("stamp");
+
+  let correct = false;
+  let reason = "";
+
+  const hasViolation = !v.docValid || v.photo !== "Совпадает" || parseInt(v.expiry) < 1990 || v.hasContraband;
+
+  if (pass) {
+    if (!hasViolation) { correct = true; reason = "Все документы в порядке."; }
+    else {
+      const issues = [];
+      if (!v.docValid) issues.push("подделка документов");
+      if (v.photo !== "Совпадает") issues.push("несовпадение фото");
+      if (parseInt(v.expiry) < 1990) issues.push("просрочен паспорт");
+      if (v.hasContraband) issues.push("контрабанда");
+      reason = "Пропущен нарушитель: " + issues.join(", ");
+    }
+  } else {
+    if (hasViolation) { correct = true; reason = "Нарушение выявлено."; }
+    else reason = "Отказано невиновному.";
+  }
+
+  // Эффекты
+  stamp.textContent = pass ? "ПРОПУСК" : "ОТКАЗ";
+  stamp.className = "stamp " + (pass ? "" : "deny");
+  stamp.classList.add("show");
+  setTimeout(() => stamp.classList.remove("show"), 700);
+
+  if (pass) {
+    barrier.classList.add("open");
+    document.getElementById("car").style.left = "50%";
+    document.getElementById("car").style.opacity = "0";
+  }
+
+  if (correct) {
+    state.money += 50;
+    state.reputation = Math.min(100, state.reputation + 2);
+    if (pass) state.passed++; else state.denied++;
+    log("✔ " + reason + " +50₽", "ok");
+  } else {
+    state.strikes++;
+    state.reputation = Math.max(0, state.reputation - 15);
+    state.money = Math.max(0, state.money - 100);
+    log("✘ " + reason + " −100₽ (страйк " + state.strikes + "/3)", "err");
+  }
+
+  // Блокируем кнопки
+  document.getElementById("btnPass").style.display = "none";
+  document.getElementById("btnDeny").style.display = "none";
+  document.getElementById("btnNext").style.display = "block";
+  document.getElementById("btnScanTrunk").style.display = "none";
+  document.getElementById("btnScanCabin").style.display = "none";
+  document.getElementById("btnScanFuel").style.display  = "none";
+
+  updateHUD();
+
+  if (state.strikes >= 3) endGame("Вы уволены за 3 ошибки.");
+}
+
+// ===== Следующая машина =====
+function nextVehicle() {
+  if (state.finished) return;
+  state.day++;
+  state.current = newVehicle();
+  state.scanned = { trunk: false, cabin: false, fuel: false };
+  renderVehicle();
+  updateHUD();
+  if (state.day % 5 === 0) {
+    log(`Смена продолжается. День ${state.day}.`, "info");
+  }
+}
+
+// ===== HUD =====
+function updateHUD() {
+  document.getElementById("money").textContent = state.money;
+  document.getElementById("day").textContent = state.day;
+  document.getElementById("passed").textContent = state.passed;
+  document.getElementById("denied").textContent = state.denied;
+  document.getElementById("rep").textContent = state.reputation;
+  document.getElementById("rep").style.color = state.reputation < 40 ? "#ff5252" : "#ffcc00";
+}
+
+// ===== Конец игры =====
+function endGame(reason) {
+  state.finished = true;
+  document.getElementById("goReason").textContent = reason;
+  document.getElementById("goDays").textContent = state.day;
+  document.getElementById("goMoney").textContent = state.money;
+  document.getElementById("gameover").classList.add("show");
+}
+
+// ===== Рестарт =====
+function restart() {
+  state.money = 500;
+  state.day = 1;
+  state.passed = 0;
+  state.denied = 0;
+  state.reputation = 100;
+  state.strikes = 0;
+  state.finished = false;
+  state.scanned = { trunk: false, cabin: false, fuel: false };
+  document.getElementById("log").innerHTML = "";
+  document.getElementById("gameover").classList.remove("show");
+  state.current = newVehicle();
+  renderVehicle();
+  updateHUD();
+  log("Смена началась. Удачи, инспектор.", "ok");
+}
+
+// ===== Обработчики =====
+document.getElementById("btnStart").onclick = () => {
+  document.getElementById("start").classList.add("hide");
+  restart();
+};
+document.getElementById("btnScanTrunk").onclick = () => scan("trunk");
+document.getElementById("btnScanCabin").onclick = () => scan("cabin");
+document.getElementById("btnScanFuel").onclick  = () => scan("fuel");
+document.getElementById("btnPass").onclick = () => decide(true);
+document.getElementById("btnDeny").onclick = () => decide(false);
+document.getElementById("btnNext").onclick = () => nextVehicle();
+document.getElementById("btnRestart").onclick = restart;
+
+// ===== Горячие клавиши =====
+document.addEventListener("keydown", e => {
+  if (state.finished) return;
+  if (e.key === "1") scan("trunk");
+  if (e.key === "2") scan("cabin");
+  if (e.key === "3") scan("fuel");
+  if (e.key === "p" || e.key === "P") decide(true);
+  if (e.key === "o" || e.key === "O") decide(false);
+  if (e.key === "Enter" && document.getElementById("btnNext").style.display === "block") nextVehicle();
+});
+</script>
+</body>
+</html>
