@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🦛 Водные горки Бегемота</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%; overflow: hidden;
+    background: linear-gradient(180deg, #4fc3f7 0%, #0288d1 100%);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    touch-action: none; user-select: none;
+  }
+  #game {
+    position: relative; width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  canvas { display: block; }
+  #hud {
+    position: absolute; top: 10px; left: 10px; right: 10px;
+    display: flex; justify-content: space-between;
+    color: #fff; font-weight: bold; font-size: 16px;
+    text-shadow: 0 2px 4px rgba(0,0,0,.5);
+    pointer-events: none; z-index: 10;
+  }
+  #hud .panel {
+    background: rgba(0,0,0,.35);
+    padding: 8px 14px; border-radius: 20px;
+    backdrop-filter: blur(4px);
+  }
+  #controls {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 20px 20px 30px; pointer-events: none; z-index: 10;
+  }
+  .arrow-btn {
+    pointer-events: auto;
+    width: 80px; height: 80px; border-radius: 50%;
+    border: none; background: rgba(255,255,255,.35);
+    color: #01579b; font-size: 36px; font-weight: bold;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 4px 12px rgba(0,0,0,.3);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .1s, background .15s;
+  }
+  .arrow-btn:active { transform: scale(.9); background: rgba(255,255,255,.6); }
+  .fart-btn {
+    pointer-events: auto;
+    width: 110px; height: 110px; border-radius: 50%;
+    border: none;
+    background: radial-gradient(circle at 30% 30%, #a5ff6e, #4caf50 60%, #2e7d32);
+    color: #fff; font-size: 16px; font-weight: bold;
+    box-shadow: 0 6px 20px rgba(0,0,0,.4), inset 0 -4px 0 rgba(0,0,0,.2);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: transform .08s;
+    letter-spacing: .5px;
+  }
+  .fart-btn:active { transform: scale(.92); box-shadow: 0 3px 10px rgba(0,0,0,.4), inset 0 2px 8px rgba(0,0,0,.3); }
+  .fart-btn .icon { font-size: 30px; line-height: 1; }
+  #overlay {
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0,20,40,.55); backdrop-filter: blur(6px);
+    color: #fff; text-align: center; padding: 20px;
+    transition: opacity .3s;
+  }
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  #overlay h1 { font-size: 32px; margin-bottom: 12px; text-shadow: 0 3px 8px rgba(0,0,0,.5); }
+  #overlay p { font-size: 16px; margin-bottom: 24px; max-width: 320px; line-height: 1.5; opacity: .95; }
+  #startBtn {
+    padding: 16px 44px; font-size: 20px; font-weight: bold;
+    border: none; border-radius: 40px; cursor: pointer;
+    background: linear-gradient(135deg, #66bb6a, #2e7d32);
+    color: #fff; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+    transition: transform .15s;
+  }
+  #startBtn:active { transform: scale(.95); }
+  .checkpoint-msg {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0);
+    background: rgba(255,255,255,.95); color: #01579b;
+    padding: 14px 28px; border-radius: 30px; font-weight: bold; font-size: 18px;
+    z-index: 15; pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+  .checkpoint-msg.show { animation: pop 1.2s ease-out forwards; }
+  @keyframes pop {
+    0% { transform: translate(-50%,-50%) scale(0); opacity: 0; }
+    20% { transform: translate(-50%,-50%) scale(1.1); opacity: 1; }
+    70% { transform: translate(-50%,-50%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%,-50%) scale(1); opacity: 0; }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <canvas id="canvas"></canvas>
+
+  <div id="hud">
+    <div class="panel">⏱ <span id="time">0.0</span>с</div>
+    <div class="panel">🎯 Чекпоинт: <span id="cp">0</span></div>
+    <div class="panel">🏆 Рекорд: <span id="best">0</span></div>
+  </div>
+
+  <div class="checkpoint-msg" id="cpMsg">✅ ЧЕКПОИНТ!</div>
+
+  <div id="controls">
+    <button class="arrow-btn" id="leftBtn">◀</button>
+    <button class="fart-btn" id="fartBtn">
+      <span class="icon">💨</span>
+      <span>ПУК</span>
+    </button>
+    <button class="arrow-btn" id="rightBtn">▶</button>
+  </div>
+
+  <div id="overlay">
+    <h1>🦛 Водные горки</h1>
+    <p>Бегемот на надувном круге!<br>
+    Жми <b>ПУК</b> чтобы плыть вперёд 🟢<br>
+    Стрелками двигайся по кругу влево/вправо.<br>
+    Не врезайся в берега!<br>
+    <b>Чекпоинты</b> спасают от рестарта.</p>
+    <button id="startBtn">ПОЕХАЛИ! 🚀</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ===== КАНВАС =====
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, DPR = window.devicePixelRatio || 1;
+
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (track) buildTrack();
+  }
+  window.addEventListener('resize', resize);
+
+  // ===== ТРАССА (полилиния с шириной) =====
+  // Каждая точка: {x, y, w}. Игрок движется вдоль трассы, можно смещаться в стороны.
+  let track = [];
+  let trackLength = 0;
+  let segLengths = [];
+  let segStarts = [];
+  let checkpoints = []; // {t, index}
+
+  // Процедурная генерация извилистой трассы "восьмёрка / змейка с поворотами"
+  function generateTrack() {
+    const pts = [];
+    const cx = W / 2;
+    const cy = H / 2;
+    const scaleX = Math.min(W, H) * 0.42;
+    const scaleY = Math.min(W, H) * 0.42;
+
+    // Параметрическая "восьмёрка" с вариациями + петля
+    const N = 220;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      // Восьмёрка (лемниската) с наложенной синусоидой для поворотов
+      let x = Math.sin(a) * Math.cos(a) * 2.0;
+      let y = Math.cos(a) * 1.15;
+      // Добавим "волны" поворотов
+      x += Math.sin(a * 3) * 0.18;
+      y += Math.cos(a * 2) * 0.10;
+      // Толщина трассы — узкие горки
+      const w = 42 + Math.sin(a * 4) * 6;
+      pts.push({
+        x: cx + x * scaleX,
+        y: cy + y * scaleY,
+        w: w
+      });
+    }
+    return pts;
+  }
+
+  function buildTrack() {
+    track = generateTrack();
+    // Длины сегментов и накопление
+    segLengths = [];
+    segStarts = [];
+    trackLength = 0;
+    for (let i = 0; i < track.length - 1; i++) {
+      const a = track[i], b = track[i + 1];
+      const d = Math.hypot(b.x - a.x, b.y - a.y);
+      segLengths.push(d);
+      segStarts.push(trackLength);
+      trackLength += d;
+    }
+    // Замкнём (последняя точка -> первая)
+    const a = track[track.length - 1], b = track[0];
+    const d = Math.hypot(b.x - a.x, b.y - a.y);
+    segLengths.push(d);
+    segStarts.push(trackLength);
+    trackLength += d;
+
+    // Чекпоинты каждые ~20% трассы
+    checkpoints = [];
+    const cpCount = 5;
+    for (let i = 1; i <= cpCount; i++) {
+      checkpoints.push({ t: (i / (cpCount + 1)) * trackLength, passed: false });
+    }
+  }
+
+  // Получить позицию и направление по расстоянию t (0..trackLength)
+  function getTrackPoint(t) {
+    t = ((t % trackLength) + trackLength) % trackLength;
+    // Бинарный поиск сегмента
+    let lo = 0, hi = segStarts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (segStarts[mid] <= t) lo = mid; else hi = mid - 1;
+    }
+    const idx = lo;
+    const localT = (t - segStarts[idx]) / (segLengths[idx] || 1);
+    const a = track[idx];
+    const b = track[(idx + 1) % track.length];
+    const x = a.x + (b.x - a.x) * localT;
+    const y = a.y + (b.y - a.y) * localT;
+    const w = a.w + (b.w - a.w) * localT;
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
+    return { x, y, w, angle, idx };
+  }
+
+  // ===== ИГРОК =====
+  const player = {
+    t: 0,           // позиция вдоль трассы
+    offset: 0,      // смещение от центра (-1..1 относительно полуширины)
+    speed: 0,       // скорость вдоль трассы
+    lateral: 0,     // боковая скорость
+    baseSpeed: 140, // px/сек
+    maxSpeed: 320,
+    alive: true,
+    respawnT: 0,
+    fartTimer: 0,
+    fartParticles: [],
+    angle: 0,
+    hippoBounce: 0,
+    lastCpIndex: -1
+  };
+
+  // ===== ВВОД =====
+  const input = { left: false, right: false, fart: false };
+  let fartCooldown = 0;
+
+  function bindHold(el, key) {
+    const down = (e) => { e.preventDefault(); input[key] = true; };
+    const up = (e) => { e.preventDefault(); input[key] = false; };
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerleave', up);
+    el.addEventListener('pointercancel', up);
+  }
+  bindHold(document.getElementById('leftBtn'), 'left');
+  bindHold(document.getElementById('rightBtn'), 'right');
+  bindHold(document.getElementById('fartBtn'), 'fart');
+
+  // Клавиатура для десктопа
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') input.left = true;
+    if (e.key === 'ArrowRight' || e.key === 'd') input.right = true;
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') { input.fart = true; e.preventDefault(); }
+  });
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'ArrowLeft' || e.key === 'a') input.left = false;
+    if (e.key === 'ArrowRight' || e.key === 'd') input.right = false;
+    if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w') input.fart = false;
+  });
+
+  // ===== СОСТОЯНИЕ ИГРЫ =====
+  let running = false;
+  let startTime = 0;
+  let elapsed = 0;
+  let bestTime = parseFloat(localStorage.getItem('hippoBest') || '0') || 0;
+  let audioCtx = null;
+  let fartSoundTimer = 0;
+
+  document.getElementById('best').textContent = bestTime.toFixed(1);
+
+  function playFartSound() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) { return; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 600;
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(110, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(45, audioCtx.currentTime + 0.25);
+    g.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.18, audioCtx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.3);
+    o.connect(filter); filter.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.3);
+  }
+
+  function playCrashSound() {
+    if (!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(200, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.4);
+    g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + 0.4);
+  }
+
+  function playCheckpointSound() {
+    if (!audioCtx) return;
+    [660, 880, 1100].forEach((f, i) => {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      const t = audioCtx.currentTime + i * 0.08;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.15, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.3);
+    });
+  }
+
+  // ===== СБРОС / РЕСТАРТ =====
+  function resetPlayer(fromCheckpoint = true) {
+    player.speed = 0;
+    player.lateral = 0;
+    player.offset = 0;
+    player.alive = true;
+    player.fartParticles = [];
+    if (fromCheckpoint && player.lastCpIndex >= 0) {
+      player.t = checkpoints[player.lastCpIndex].t;
+    } else {
+      player.t = 0;
+    }
+  }
+
+  function startGame() {
+    document.getElementById('overlay').classList.add('hidden');
+    buildTrack();
+    player.t = 0;
+    player.offset = 0;
+    player.speed = 0;
+    player.lateral = 0;
+    player.alive = true;
+    player.lastCpIndex = -1;
+    player.fartParticles = [];
+    checkpoints.forEach(c => c.passed = false);
+    startTime = performance.now();
+    elapsed = 0;
+    running = true;
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  document.getElementById('startBtn').addEventListener('click', startGame);
+
+  // ===== ОБНОВЛЕНИЕ =====
+  let lastTime = performance.now();
+
+  function update(dt) {
+    if (!running) return;
+
+    // Время
+    elapsed = (performance.now() - startTime) / 1000;
+    document.getElementById('time').textContent = elapsed.toFixed(1);
+
+    // Боковое управление (наклон по кругу)
+    const lateralAccel = 320;
+    if (input.left) player.lateral -= lateralAccel * dt;
+    if (input.right) player.lateral += lateralAccel * dt;
+    // Затухание
+    player.lateral *= Math.pow(0.02, dt);
+
+    // Ограничение боковой скорости
+    player.lateral = Math.max(-260, Math.min(260, player.lateral));
+
+    // Пук — ускорение вперёд
+    fartCooldown -= dt;
+    if (input.fart && fartCooldown <= 0) {
+      player.speed = Math.min(player.maxSpeed, player.speed + 260);
+      fartCooldown = 0.18;
+      player.fartTimer = 0.35;
+      playFartSound();
+      // частицы газов
+      const tp = getTrackPoint(player.t);
+      const sideAngle = tp.angle + Math.PI / 2;
+      const px = tp.x + Math.cos(sideAngle) * player.offset * tp.w * 0.5;
+      const py = tp.y + Math.sin(sideAngle) * player.offset * tp.w * 0.5;
+      for (let i = 0; i < 8; i++) {
+        player.fartParticles.push({
+          x: px, y: py,
+          vx: -Math.cos(tp.angle) * (60 + Math.random() * 80) + (Math.random()-0.5) * 80,
+          vy: -Math.sin(tp.angle) * (60 + Math.random() * 80) + (Math.random()-0.5) * 80,
+          life: 0.6 + Math.random() * 0.4,
+          maxLife: 1.0,
+          r: 6 + Math.random() * 10
+        });
+      }
+    }
+
+    // Естественное замедление
+    player.speed *= Math.pow(0.55, dt);
+    if (player.speed < 0) player.speed = 0;
+
+    // Движение вперёд
+    player.t += player.speed * dt;
+
+    // Движение по кругу (смещение)
+    const tp = getTrackPoint(player.t);
+    player.offset += (player.lateral / Math.max(60, tp.w * 0.5)) * dt;
+    // Ограничение смещения (по внешней части круга) — 0.85 ширины
+    const maxOffset = 0.85;
+    if (Math.abs(player.offset) > maxOffset) {
+      // Врезался в берег
+      if (player.alive) {
+        player.alive = false;
+        playCrashSound();
+        player.crashTime = 0;
+        // Сброс через секунду
+        setTimeout(() => {
+          resetPlayer(true);
+        }, 700);
+      }
+      player.offset = Math.sign(player.offset) * maxOffset;
+      player.speed *= 0.3;
+      player.lateral = 0;
+    }
+
+    // Угол игрока
+    player.angle = tp.angle;
+    player.hippoBounce += dt * (6 + player.speed * 0.02);
+
+    // Частицы
+    for (let i = player.fartParticles.length - 1; i >= 0; i--) {
+      const p = player.fartParticles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vx *= Math.pow(0.1, dt);
+      p.vy *= Math.pow(0.1, dt);
+      p.life -= dt;
+      p.r += dt * 18;
+      if (p.life <= 0) player.fartParticles.splice(i, 1);
+    }
+
+    // Чекпоинты
+    for (let i = 0; i < checkpoints.length; i++) {
+      const cp = checkpoints[i];
+      if (!cp.passed && player.t >= cp.t) {
+        cp.passed = true;
+        player.lastCpIndex = i;
+        document.getElementById('cp').textContent = (i + 1);
+        playCheckpointSound();
+        const msg = document.getElementById('cpMsg');
+        msg.textContent = '✅ ЧЕКПОИНТ ' + (i + 1) + '!';
+        msg.classList.remove('show');
+        void msg.offsetWidth;
+        msg.classList.add('show');
+      }
+    }
+
+    // Финиш (прошёл всю трассу)
+    if (player.t >= trackLength) {
+      finishGame();
+    }
+  }
+
+  function finishGame() {
+    running = false;
+    if (elapsed > bestTime) {
+      bestTime = elapsed;
+      localStorage.setItem('hippoBest', bestTime.toFixed(1));
+      document.getElementById('best').textContent = bestTime.toFixed(1);
+    }
+    const overlay = document.getElementById('overlay');
+    overlay.innerHTML = `
+      <h1>🏁 ФИНИШ!</h1>
+      <p>Время: <b>${elapsed.toFixed(1)}с</b><br>
+      Рекорд: <b>${bestTime.toFixed(1)}с</b></p>
+      <button id="startBtn">ЕЩЁ РАЗ! 🔁</button>
+    `;
+    overlay.classList.remove('hidden');
+    document.getElementById('startBtn').addEventListener('click', () => location.reload());
+  }
+
+  // ===== ОТРИСОВКА =====
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Фон-градиент
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#4fc3f7');
+    bg.addColorStop(1, '#0288d1');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    if (!track.length) return;
+
+    // Рисуем трассу: внешняя граница (бортик), вода, внутренняя
+    // Вода
+    drawTrackPath(track, 'rgba(0,180,220,0.55)', 0);
+
+    // Бортики (по краям)
+    drawTrackEdges(track);
+
+    // Чекпоинты на трассе
+    for (const cp of checkpoints) {
+      const p = getTrackPoint(cp.t);
+      drawCheckpoint(p, cp.passed);
+    }
+
+    // Финиш
+    drawFinish(getTrackPoint(trackLength * 0.995));
+
+    // Частицы газов (под игроком)
+    for (const p of player.fartParticles) {
+      const a = Math.max(0, p.life);
+      ctx.fillStyle = `rgba(80, 200, 40, ${a * 0.5})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Игрок
+    if (player.alive || true) {
+      drawHippo();
+    }
+
+    // Эффект "врезался"
+    if (!player.alive) {
+      ctx.fillStyle = `rgba(255, 40, 40, ${0.35})`;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  function drawTrackPath(track, fill, strokeW) {
+    ctx.beginPath();
+    // Левая сторона
+    for (let i = 0; i <= track.length; i++) {
+      const idx = i % track.length;
+      const p = track[idx];
+      const nx = i < track.length ? track[(i+1)%track.length] : track[0];
+      const px = i > 0 ? track[(i-1+track.length)%track.length] : track[track.length-1];
+      const dx = nx.x - px.x;
+      const dy = nx.y - py(px, nx);
+      const len = Math.hypot(dx, dy) || 1;
+      const ox = -dy/len * p.w/2;
+      const oy = dx/len * p.w/2;
+      const x = p.x + ox, y = p.y + oy;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    // Правая сторона обратно
+    for (let i = track.length; i >= 0; i--) {
+      const idx = i % track.length;
+      const p = track[idx];
+      const nx = track[(i+1)%track.length];
+      const px = track[(i-1+track.length)%track.length];
+      const dx = nx.x - px.x;
+      const dy = py(px, nx);
+      const len = Math.hypot(dx, dy) || 1;
+      const ox = dy/len * p.w/2;
+      const oy = -dx/len * p.w/2;
+      ctx.lineTo(p.x + ox, p.y + oy);
+    }
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (strokeW) {
+      ctx.lineWidth = strokeW;
+      ctx.strokeStyle = '#01579b';
+      ctx.stroke();
+    }
+  }
+
+  // helper (в аргументах поменял местами — считаем dy прямо)
+  function py(a, b) { return b.y - a.y; }
+
+  // Более простая и надёжная отрисовка бортиков: рисуем две полилинии по краям
+  function drawTrackEdges(tr) {
+    // Внешний и внутренний край
+    const left = [];
+    const right = [];
+    for (let i = 0; i < tr.length; i++) {
+      const p = tr[i];
+      const prev = tr[(i - 1 + tr.length) % tr.length];
+      const next = tr[(i + 1) % tr.length];
+      const dx = next.x - prev.x;
+      const dy = next.y - prev.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len;
+      const ny = dx / len;
+      left.push({ x: p.x + nx * p.w/2, y: p.y + ny * p.w/2 });
+      right.push({ x: p.x - nx * p.w/2, y: p.y - ny * p.w/2 });
+    }
+
+    // Бортики — толстые линии с обводкой
+    function drawEdgeLine(pts, color, width) {
+      ctx.beginPath();
+      for (let i = 0; i <= pts.length; i++) {
+        const p = pts[i % pts.length];
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.lineWidth = width;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = color;
+      ctx.stroke();
+    }
+
+    // Внешний/внутренний бортик (надувные)
+    drawEdgeLine(left, '#ff7043', 10);
+    drawEdgeLine(left, '#ffab91', 5);
+    drawEdgeLine(right, '#ff7043', 10);
+    drawEdgeLine(right, '#ffab91', 5);
+
+    // Пунктир по центру — направление
+    ctx.save();
+    ctx.setLineDash([10, 16]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    for (let i = 0; i <= tr.length; i++) {
+      const p = tr[i % tr.length];
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCheckpoint(p, passed) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+    const w = p.w;
+    // Полосатые ворота
+    ctx.fillStyle = passed ? 'rgba(80,255,120,0.5)' : 'rgba(255,235,59,0.55)';
+    ctx.fillRect(-6, -w/2, 12, w);
+    // Флажки
+    ctx.fillStyle = passed ? '#2e7d32' : '#fbc02d';
+    ctx.beginPath();
+    ctx.arc(0, -w/2, 6, 0, Math.PI*2);
+    ctx.arc(0, w/2, 6, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFinish(p) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
+    const w = p.w;
+    // Шахматная клетка
+    const cells = 6;
+    const cw = 12 / cells;
+    for (let i = 0; i < cells; i++) {
+      for (let j = 0; j < 2; j++) {
+        ctx.fillStyle = (i + j) % 2 === 0 ? '#fff' : '#000';
+        ctx.fillRect(-6 + i * cw, -w/2 + j * w/2, cw, w/2);
+      }
+    }
+    ctx.restore();
+  }
+
+  // 🦛 Бегемот на надувном круге
+  function drawHippo() {
+    const tp = getTrackPoint(player.t);
+    // Позиция с учётом смещения
+    const sideAngle = tp.angle + Math.PI / 2;
+    const px = tp.x + Math.cos(sideAngle) * player.offset * (tp.w * 0.5);
+    const pyv = tp.y + Math.sin(sideAngle) * player.offset * (tp.w * 0.5);
+
+    const bounce = Math.sin(player.hippoBounce) * 2;
+
+    ctx.save();
+    ctx.translate(px, pyv + bounce);
+    ctx.rotate(tp.angle);
+
+    const baseR = 22;
+
+    // Тень
+    ctx.beginPath();
+    ctx.ellipse(0, baseR * 0.7, baseR * 1.1, baseR * 0.5, 0, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fill();
+
+    // Надувной круг (спасательный)
+    const ringR = baseR * 1.15;
+    ctx.beginPath();
+    ctx.arc(0, 0, ringR, 0, Math.PI*2);
+    ctx.fillStyle = '#ffeb3b';
+    ctx.fill();
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = '#fbc02d';
+    ctx.stroke();
+    // Красные полоски на круге
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = '#e53935';
+    for (let i = 0; i < 4; i++) {
+      const a1 = (i / 4) * Math.PI * 2 + Math.PI/8;
+      const a2 = a1 + Math.PI / 8;
+      ctx.beginPath();
+      ctx.arc(0, 0, ringR, a1, a2);
+      ctx.stroke();
+    }
+
+    // Тело бегемота (вид сверху)
+    // Задняя часть (попа) — из неё газы
+    ctx.beginPath();
+    ctx.ellipse(-baseR * 0.55, 0, baseR * 0.75, baseR * 0.55, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#8e7cc3';
+    ctx.fill();
+    ctx.strokeStyle = '#6a5aa8';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Голова
+    ctx.beginPath();
+    ctx.ellipse(baseR * 0.6, 0, baseR * 0.65, baseR * 0.6, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#9c8fd6';
+    ctx.fill();
+    ctx.strokeStyle = '#6a5aa8';
+    ctx.stroke();
+
+    // Уши
+    ctx.beginPath();
+    ctx.arc(baseR * 0.35, -baseR * 0.55, 6, 0, Math.PI*2);
+    ctx.arc(baseR * 0.35, baseR * 0.55, 6, 0, Math.PI*2);
+    ctx.fillStyle = '#7e6bc4';
+    ctx.fill();
+
+    // Морда
+    ctx.beginPath();
+    ctx.ellipse(baseR * 0.95, 0, baseR * 0.35, baseR * 0.4, 0, 0, Math.PI*2);
+    ctx.fillStyle = '#b3a5e8';
+    ctx.fill();
+
+    // Глаза
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(baseR * 0.75, -baseR * 0.25, 4.5, 0, Math.PI*2);
+    ctx.arc(baseR * 0.75, baseR * 0.25, 4.5, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(baseR * 0.78, -baseR * 0.25, 2.2, 0, Math.PI*2);
+    ctx.arc(baseR * 0.78, baseR * 0.25, 2.2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Ноздри
+    ctx.fillStyle = '#5a4a9a';
+    ctx.beginPath();
+    ctx.arc(baseR * 1.18, -4, 2.2, 0, Math.PI*2);
+    ctx.arc(baseR * 1.18, 4, 2.2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Если сейчас "пук" — зелёная волна у попы
+    if (player.fartTimer > 0) {
+      ctx.fillStyle = `rgba(100, 255, 60, ${player.fartTimer})`;
+      ctx.beginPath();
+      ctx.arc(-baseR * 0.9, 0, baseR * 0.5 * (1.2 - player.fartTimer), 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  // ===== ЦИКЛ =====
+  function loop(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // ===== СТАРТ =====
+  resize();
+  buildTrack();
+  requestAnimationFrame(loop);
+
+  // Первый запуск overlay уже показан
+})();
+</script>
+</body>
+</html>
