@@ -1,0 +1,2232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Лесной Апокалипсис — Реалистичная версия</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: #0d1a0d; font-family: 'Arial', sans-serif;
+    touch-action: none; user-select: none;
+  }
+  #gameCanvas { display: block; position: absolute; top: 0; left: 0; }
+
+  #ui { position: absolute; inset: 0; pointer-events: none; }
+
+  #joystick {
+    position: absolute; bottom: 30px; left: 30px;
+    width: 130px; height: 130px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(40,80,40,0.35), rgba(20,40,20,0.15));
+    border: 2px solid rgba(120,200,120,0.35);
+    display: none; pointer-events: none;
+    box-shadow: 0 0 20px rgba(80,255,80,0.1), inset 0 0 30px rgba(0,0,0,0.3);
+  }
+  #joystickKnob {
+    position: absolute; left: 50%; top: 50%;
+    width: 55px; height: 55px; border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle at 35% 35%, rgba(140,230,140,0.9), rgba(40,120,40,0.8));
+    border: 2px solid rgba(180,255,180,0.6);
+    box-shadow: 0 0 15px rgba(100,255,100,0.4);
+  }
+
+  #fireBtn {
+    position: absolute; bottom: 40px; right: 40px;
+    width: 100px; height: 100px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, rgba(220,80,60,0.85), rgba(140,20,20,0.75));
+    border: 3px solid rgba(255,120,100,0.5);
+    pointer-events: auto; touch-action: none;
+    box-shadow: 0 0 20px rgba(255,60,40,0.35), inset 0 0 20px rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: bold; letter-spacing: 1px;
+    text-shadow: 0 1px 3px #000;
+  }
+  #fireBtn:active { transform: scale(0.95); }
+
+  #weaponPanel {
+    position: absolute; bottom: 155px; right: 40px;
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: auto;
+  }
+  .weaponBtn {
+    width: 55px; height: 55px; border-radius: 12px;
+    background: rgba(20,40,20,0.7);
+    border: 2px solid rgba(100,180,100,0.4);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer;
+    transition: all 0.15s;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+  }
+  .weaponBtn.active {
+    border-color: rgba(120,255,120,0.9);
+    background: rgba(40,100,40,0.8);
+    box-shadow: 0 0 18px rgba(80,255,80,0.5);
+  }
+  .weaponBtn:active { transform: scale(0.92); }
+
+  #godBtn {
+    position: absolute; top: 15px; left: 15px;
+    padding: 10px 16px; border-radius: 10px;
+    background: rgba(20,40,60,0.75);
+    border: 2px solid rgba(80,160,255,0.5);
+    color: #cce6ff; font-size: 14px; font-weight: bold;
+    pointer-events: auto; cursor: pointer;
+    letter-spacing: 1px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    transition: all 0.15s;
+  }
+  #godBtn.on {
+    background: rgba(40,120,220,0.85);
+    border-color: rgba(150,220,255,1);
+    color: #fff;
+    box-shadow: 0 0 22px rgba(80,180,255,0.7);
+  }
+  #godBtn:active { transform: scale(0.95); }
+
+  #hud {
+    position: absolute; top: 15px; right: 15px;
+    color: #cde;
+    font-size: 16px; text-shadow: 0 2px 4px #000;
+    text-align: right; line-height: 1.5;
+  }
+  #hud .ammo { font-size: 28px; font-weight: bold; color: #ffe; }
+
+  #gameOver {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(10,0,0,0.8); color: #fcc;
+    font-size: 42px; font-weight: bold; letter-spacing: 2px;
+    pointer-events: auto; z-index: 10;
+    backdrop-filter: blur(4px);
+  }
+  #gameOver small { font-size: 18px; color: #daa; margin-top: 10px; letter-spacing: 1px; }
+  #restartBtn {
+    margin-top: 30px; padding: 14px 36px; font-size: 20px;
+    background: linear-gradient(180deg,#2a5a2a,#1a3a1a);
+    border: 2px solid #6c6; border-radius: 12px; color: #cfc;
+    cursor: pointer; letter-spacing: 1px;
+  }
+  #restartBtn:active { transform: scale(0.96); }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+
+<div id="ui">
+  <div id="joystick"><div id="joystickKnob"></div></div>
+  <div id="weaponPanel">
+    <div class="weaponBtn active" data-w="pistol">🔫</div>
+    <div class="weaponBtn" data-w="shotgun">💥</div>
+    <div class="weaponBtn" data-w="mg">⚙️</div>
+  </div>
+  <div id="fireBtn">FIRE</div>
+  <div id="godBtn">БЕССМЕРТИЕ (G)</div>
+  <div id="hud">
+    <div class="ammo" id="ammoDisplay">∞</div>
+    <div id="weaponName">Пистолет</div>
+    <div id="score">Убито: 0</div>
+  </div>
+  <div id="gameOver">
+    ВЫ ПОГИБЛИ
+    <small>Нажмите, чтобы начать заново</small>
+    <button id="restartBtn">ЗАНОВО</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   КОНФИГ
+============================================================ */
+const CFG = {
+  worldW: 4000, worldH: 4000,
+  playerSpeed: 2.6,
+  playerRadius: 15,
+  joystickMax: 50,
+  zombieCount: 16,
+  zombieSpeed: 1.0,
+  zombieRadius: 16,
+  zombieHP: 3,
+};
+
+const WEAPONS = {
+  pistol:  { name:"Пистолет", damage:1, fireRate:260, spread:0.03, pellets:1, maxAngle:Math.PI/3, color:"#ffe37a", tracer:"#ffdd55", range:700, auto:false },
+  shotgun: { name:"Дробовик", damage:1, fireRate:750, spread:0.20, pellets:6, maxAngle:Math.PI/4, color:"#ff9944", tracer:"#ffaa44", range:420, auto:false },
+  mg:      { name:"Пулемёт",  damage:1, fireRate:95,  spread:0.07, pellets:1, maxAngle:Math.PI/5, color:"#9fe0ff", tracer:"#aaddff", range:800, auto:true },
+};
+const WKEYS = Object.keys(WEAPONS);
+
+/* ============================================================
+   CANVAS
+============================================================ */
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+let VW = 0, VH = 0, DPR = 1;
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  VW = window.innerWidth; VH = window.innerHeight;
+  canvas.width = VW * DPR; canvas.height = VH * DPR;
+  canvas.style.width = VW + "px"; canvas.style.height = VH + "px";
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  generateGroundTexture();
+}
+window.addEventListener("resize", resize);
+
+/* ============================================================
+   УТИЛИТЫ
+============================================================ */
+function seededRandom(seed) {
+  let s = seed >>> 0;
+  return function () {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+function normalizeAngle(a) {
+  while (a > Math.PI) a -= Math.PI*2;
+  while (a < -Math.PI) a += Math.PI*2;
+  return a;
+}
+function lerp(a,b,t) { return a + (b-a)*t; }
+
+/* ============================================================
+   МИР: деревья, камни, валуны, дома
+============================================================ */
+let worldObjects = [];
+let buildings = [];
+let leaves = [];
+let textureCanvas = null;
+let windTime = 0;
+let windStrength = 0.5;
+
+function generateWorld() {
+  worldObjects = [];
+  buildings = [];
+  const rnd = seededRandom(1337);
+
+  // Деревья
+  for (let i = 0; i < 300; i++) {
+    const x = rnd() * CFG.worldW;
+    const y = rnd() * CFG.worldH;
+    if (Math.hypot(x - CFG.worldW/2, y - CFG.worldH/2) < 300) continue;
+    const type = rnd() < 0.55 ? "fir" : (rnd() < 0.7 ? "oak" : "dry");
+    worldObjects.push({
+      type, x, y,
+      r: type === "fir" ? 26 + rnd()*18 : (type === "oak" ? 30 + rnd()*20 : 18 + rnd()*12),
+      seed: Math.floor(rnd()*10000),
+      shade: rnd(),
+      phase: rnd() * Math.PI * 2,
+      windAmp: 0.5 + rnd() * 0.8,
+    });
+  }
+  // Кусты
+  for (let i = 0; i < 300; i++) {
+    worldObjects.push({
+      type: "bush", x: rnd()*CFG.worldW, y: rnd()*CFG.worldH,
+      r: 8 + rnd()*14, shade: rnd(),
+      phase: rnd()*Math.PI*2, windAmp: 0.3 + rnd()*0.5,
+    });
+  }
+  // Камни (маленькие — проходимые)
+  for (let i = 0; i < 150; i++) {
+    worldObjects.push({
+      type: "rock", x: rnd()*CFG.worldW, y: rnd()*CFG.worldH,
+      r: 6 + rnd()*10, shade: rnd(),
+      solid: false,
+    });
+  }
+  // Валуны (большие — препятствия)
+  for (let i = 0; i < 70; i++) {
+    const x = rnd()*CFG.worldW, y = rnd()*CFG.worldH;
+    if (Math.hypot(x - CFG.worldW/2, y - CFG.worldH/2) < 300) continue;
+    worldObjects.push({
+      type: "boulder", x, y,
+      r: 24 + rnd()*28, shade: rnd(),
+      solid: true, seed: Math.floor(rnd()*10000),
+    });
+  }
+  // Пригорки (препятствия)
+  for (let i = 0; i < 50; i++) {
+    const x = rnd()*CFG.worldW, y = rnd()*CFG.worldH;
+    if (Math.hypot(x - CFG.worldW/2, y - CFG.worldH/2) < 350) continue;
+    worldObjects.push({
+      type: "hill", x, y,
+      r: 45 + rnd()*55, shade: rnd(),
+      solid: true, seed: Math.floor(rnd()*10000),
+    });
+  }
+
+  // ===== ЗДАНИЯ =====
+  // Центральный дом — безопасная зона
+  buildings.push(makeBuilding(
+    CFG.worldW/2 - 180, CFG.worldH/2 + 200, 360, 280, "house",
+    { walls: "#8a6a4a", roof: "#5a3a2a", floor: "#c8a878" }
+  ));
+  // Несколько домов по карте
+  const bColors = [
+    { walls:"#6a7a8a", roof:"#3a4a5a", floor:"#a8b0b8" },
+    { walls:"#a87a4a", roof:"#6a3a1a", floor:"#d8b898" },
+    { walls:"#8a8a7a", roof:"#4a4a3a", floor:"#c0c0b0" },
+    { walls:"#7a5a4a", roof:"#3a2a1a", floor:"#b89878" },
+  ];
+  const positions = [
+    [600, 700], [3200, 800], [800, 3200], [3100, 3100], [1800, 600], [600, 1800], [3400, 2000]
+  ];
+  positions.forEach(([bx,by], i) => {
+    buildings.push(makeBuilding(
+      bx, by, 280 + rnd()*80, 220 + rnd()*80, "house",
+      bColors[i % bColors.length]
+    ));
+  });
+  // Сарай
+  buildings.push(makeBuilding(1500, 3400, 320, 200, "barn",
+    { walls:"#7a4a2a", roof:"#4a2a1a", floor:"#a87a4a" }));
+
+  // Растения для листьев — не тут, а листья создаются динамически
+}
+
+function makeBuilding(x, y, w, h, type, colors) {
+  return {
+    x, y, w, h, type, colors,
+    doorX: x + w/2 - 25,
+    doorY: y + h - 4,
+    doorW: 50,
+    // окна
+    windows: [
+      { x: x + 20, y: y + 20, w: 40, h: 40 },
+      { x: x + w - 60, y: y + 20, w: 40, h: 40 },
+      { x: x + 20, y: y + h - 100, w: 40, h: 40 },
+      { x: x + w - 60, y: y + h - 100, w: 40, h: 40 },
+    ],
+    // мебель
+    furniture: [
+      { type: "table", x: x + w*0.5 - 25, y: y + h*0.4, w: 50, h: 40 },
+      { type: "crate", x: x + 30, y: y + h - 80, w: 35, h: 35 },
+      { type: "crate", x: x + w - 65, y: y + h - 80, w: 35, h: 35 },
+      { type: "bed",   x: x + w - 90, y: y + 30, w: 60, h: 35 },
+    ],
+  };
+}
+
+function generateGroundTexture() {
+  if (textureCanvas) return;
+  const S = 512;
+  textureCanvas = document.createElement("canvas");
+  textureCanvas.width = S; textureCanvas.height = S;
+  const tc = textureCanvas.getContext("2d");
+  const grd = tc.createLinearGradient(0, 0, S, S);
+  grd.addColorStop(0, "#243a16");
+  grd.addColorStop(0.3, "#2d4a1e");
+  grd.addColorStop(0.6, "#35561f");
+  grd.addColorStop(1, "#243a16");
+  tc.fillStyle = grd;
+  tc.fillRect(0, 0, S, S);
+  const rnd = seededRandom(99);
+  for (let i = 0; i < 9000; i++) {
+    const x = rnd()*S, y = rnd()*S;
+    const a = rnd()*0.15;
+    const g = 30 + rnd()*50;
+    tc.fillStyle = `rgba(${Math.floor(g*0.6)},${Math.floor(g)},${Math.floor(g*0.4)},${a})`;
+    tc.beginPath(); tc.arc(x, y, rnd()*3.5, 0, Math.PI*2); tc.fill();
+  }
+  for (let i = 0; i < 120; i++) {
+    const x = rnd()*S, y = rnd()*S, r = 8+rnd()*35;
+    const g = tc.createRadialGradient(x,y,0,x,y,r);
+    const c = rnd() < 0.5 ? "60,100,40" : "80,110,50";
+    g.addColorStop(0, `rgba(${c},${0.12+rnd()*0.1})`);
+    g.addColorStop(1, `rgba(${c},0)`);
+    tc.fillStyle = g;
+    tc.beginPath(); tc.arc(x,y,r,0,Math.PI*2); tc.fill();
+  }
+}
+
+/* ============================================================
+   СОСТОЯНИЕ
+============================================================ */
+let player, zombies, bullets, particles, score, gameRunning, gameTime;
+let camX = 0, camY = 0;
+let godMode = false;
+
+function resetGame() {
+  player = {
+    x: CFG.worldW/2, y: CFG.worldH/2,
+    r: CFG.playerRadius,
+    hp: 100,
+    facing: 0,
+    walkPhase: 0,
+    isMoving: false,
+    insideBuilding: null,
+  };
+  zombies = []; bullets = []; particles = []; leaves = [];
+  score = 0; gameTime = 0; gameRunning = true;
+  for (let i = 0; i < CFG.zombieCount; i++) spawnZombie();
+  updateAmmoUI();
+  document.getElementById("score").textContent = "Убито: 0";
+  document.getElementById("gameOver").style.display = "none";
+}
+
+function spawnZombie() {
+  let x, y, tries = 0;
+  do {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 500 + Math.random() * 700;
+    x = player.x + Math.cos(angle) * dist;
+    y = player.y + Math.sin(angle) * dist;
+    x = Math.max(60, Math.min(CFG.worldW-60, x));
+    y = Math.max(60, Math.min(CFG.worldH-60, y));
+    tries++;
+  } while (tries < 25 && Math.hypot(x-player.x, y-player.y) < 400);
+
+  // не спавнить в здании
+  for (const b of buildings) {
+    if (x > b.x && x < b.x+b.w && y > b.y && y < b.y+b.h) {
+      x = b.x - 100; y = b.y - 100;
+    }
+  }
+
+  zombies.push({
+    x, y, r: CFG.zombieRadius,
+    hp: CFG.zombieHP,
+    speed: CFG.zombieSpeed * (0.75 + Math.random()*0.6),
+    wobble: Math.random()*Math.PI*2,
+    walkPhase: Math.random()*Math.PI*2,
+    facing: Math.random()*Math.PI*2,
+    dead: false,
+    skinTone: 0.65 + Math.random()*0.3,
+    clothHue: Math.floor(20 + Math.random()*50),
+    hairColor: Math.random() < 0.5 ? "#1a1008" : "#3a2010",
+    bodyScale: 0.9 + Math.random()*0.2,
+    blood: Math.random()*0.6,
+  });
+}
+
+/* ============================================================
+   ВВОД
+============================================================ */
+const keys = {};
+window.addEventListener("keydown", e => {
+  keys[e.code] = true;
+  if (e.code === "KeyG") toggleGod();
+  if (["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code)) e.preventDefault();
+});
+window.addEventListener("keyup", e => { keys[e.code] = false; });
+
+const godBtn = document.getElementById("godBtn");
+function toggleGod() {
+  godMode = !godMode;
+  godBtn.classList.toggle("on", godMode);
+  godBtn.textContent = godMode ? "БЕССМЕРТИЕ: ВКЛ (G)" : "БЕССМЕРТИЕ (G)";
+}
+godBtn.addEventListener("click", e => { e.stopPropagation(); toggleGod(); });
+godBtn.addEventListener("touchstart", e => { e.preventDefault(); e.stopPropagation(); toggleGod(); }, {passive:false});
+
+/* --- Джойстик --- */
+const joyEl = document.getElementById("joystick");
+const joyKnob = document.getElementById("joystickKnob");
+let joyActive = false, joyTouchId = null;
+let joyCX = 0, joyCY = 0, joyDX = 0, joyDY = 0;
+
+function joyStart(touch) {
+  joyActive = true; joyTouchId = touch.identifier;
+  joyDX = 0; joyDY = 0;
+  joyEl.style.display = "block";
+  const margin = 80;
+  const jx = Math.max(margin, Math.min(touch.clientX, VW*0.45));
+  const jy = Math.max(margin, Math.min(touch.clientY, VH - margin));
+  joyEl.style.left = (jx - 65) + "px";
+  joyEl.style.top = (jy - 65) + "px";
+  joyEl.style.bottom = "auto"; joyEl.style.right = "auto";
+  joyCX = jx; joyCY = jy;
+}
+function joyMove(touch) {
+  if (!joyActive || touch.identifier !== joyTouchId) return;
+  let dx = touch.clientX - joyCX;
+  let dy = touch.clientY - joyCY;
+  const d = Math.hypot(dx, dy);
+  if (d > CFG.joystickMax) { dx = dx/d*CFG.joystickMax; dy = dy/d*CFG.joystickMax; }
+  joyDX = dx / CFG.joystickMax;
+  joyDY = dy / CFG.joystickMax;
+  joyKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
+function joyEnd(touch) {
+  if (touch.identifier !== joyTouchId) return;
+  joyActive = false; joyTouchId = null;
+  joyDX = 0; joyDY = 0;
+  joyKnob.style.transform = "translate(-50%, -50%)";
+  joyEl.style.display = "none";
+}
+
+/* --- Стрельба --- */
+const fireBtn = document.getElementById("fireBtn");
+let fireActive = false, fireTouchId = null;
+let fireDX = 0, fireDY = 0, fireAimActive = false;
+let fireStartX = 0, fireStartY = 0;
+let mouseAim = false, mouseX = 0, mouseY = 0;
+let mouseDown = false;
+let currentWeaponIdx = 0;
+let shootCooldown = 0;
+
+function getWeapon() { return WEAPONS[WKEYS[currentWeaponIdx]]; }
+
+function aimAngleFromScreen(sx, sy) {
+  const px = player.x - camX;
+  const py = player.y - camY;
+  return Math.atan2(sy - py, sx - px);
+}
+
+function fireStart(sx, sy) {
+  fireActive = true;
+  fireStartX = sx; fireStartY = sy;
+  fireDX = 0; fireDY = 0; fireAimActive = false;
+  fireBtn.style.background = "radial-gradient(circle at 35% 35%, rgba(255,120,80,0.95), rgba(160,30,20,0.85))";
+}
+function fireMove(sx, sy) {
+  if (!fireActive) return;
+  let dx = sx - fireStartX;
+  let dy = sy - fireStartY;
+  const d = Math.hypot(dx, dy);
+  if (d > 25) {
+    fireAimActive = true;
+    // НЕ зависим от player.facing — задаём абсолютный угол
+    const aimAngle = Math.atan2(dy, dx);
+    fireDX = Math.cos(aimAngle);
+    fireDY = Math.sin(aimAngle);
+  } else {
+    fireAimActive = false;
+  }
+}
+function fireEnd() {
+  fireActive = false;
+  fireBtn.style.background = "radial-gradient(circle at 35% 35%, rgba(220,80,60,0.85), rgba(140,20,20,0.75))";
+  if (!fireAimActive) shoot(player.facing);
+  else shoot(Math.atan2(fireDY, fireDX));
+  fireAimActive = false;
+  fireDX = 0; fireDY = 0;
+}
+
+function handleTouchStart(e) {
+  for (const t of e.changedTouches) {
+    if (t.clientX < VW * 0.5 && t.clientY > VH * 0.45 && !joyActive) {
+      joyStart(t); e.preventDefault();
+    } else if (t.clientX > VW - 160 && t.clientY > VH - 180 && fireTouchId === null) {
+      fireTouchId = t.identifier;
+      fireStart(t.clientX, t.clientY);
+      e.preventDefault();
+    }
+  }
+}
+function handleTouchMove(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyTouchId) { joyMove(t); e.preventDefault(); }
+    if (t.identifier === fireTouchId) { fireMove(t.clientX, t.clientY); e.preventDefault(); }
+  }
+}
+function handleTouchEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joyTouchId) { joyEnd(t); e.preventDefault(); }
+    if (t.identifier === fireTouchId) { fireTouchId = null; fireEnd(); e.preventDefault(); }
+  }
+}
+window.addEventListener("touchstart", handleTouchStart, {passive:false});
+window.addEventListener("touchmove", handleTouchMove, {passive:false});
+window.addEventListener("touchend", handleTouchEnd, {passive:false});
+window.addEventListener("touchcancel", handleTouchEnd, {passive:false});
+
+fireBtn.addEventListener("mousedown", e => { e.preventDefault(); fireStart(e.clientX, e.clientY); });
+fireBtn.addEventListener("mousemove", e => { if (fireActive) fireMove(e.clientX, e.clientY); });
+fireBtn.addEventListener("mouseup", e => { if (fireActive) fireEnd(); });
+fireBtn.addEventListener("mouseleave", e => { if (fireActive) fireEnd(); });
+
+canvas.addEventListener("mousemove", e => {
+  mouseAim = true; mouseX = e.clientX; mouseY = e.clientY;
+});
+canvas.addEventListener("mousedown", e => {
+  if (e.button === 0 && !fireActive) {
+    mouseDown = true;
+    shoot(aimAngleFromScreen(e.clientX, e.clientY));
+  }
+});
+canvas.addEventListener("mouseup", () => { mouseDown = false; });
+
+document.querySelectorAll(".weaponBtn").forEach((btn, i) => {
+  btn.addEventListener("click", () => switchWeapon(i));
+  btn.addEventListener("touchstart", e => { e.preventDefault(); e.stopPropagation(); switchWeapon(i); }, {passive:false});
+});
+function switchWeapon(i) {
+  currentWeaponIdx = i;
+  document.querySelectorAll(".weaponBtn").forEach((b, j) => b.classList.toggle("active", j === i));
+  updateAmmoUI();
+}
+function updateAmmoUI() {
+  const w = getWeapon();
+  document.getElementById("ammoDisplay").textContent = "∞";
+  document.getElementById("weaponName").textContent = w.name;
+}
+
+/* ============================================================
+   СТРЕЛЬБА
+============================================================ */
+function shoot(baseAngle) {
+  if (shootCooldown > 0 || !gameRunning) return;
+  const w = getWeapon();
+  shootCooldown = w.fireRate / 1000;
+  for (let p = 0; p < w.pellets; p++) {
+    const a = baseAngle + (Math.random() - 0.5) * w.spread * 2;
+    bullets.push({
+      x: player.x + Math.cos(a) * (player.r + 6),
+      y: player.y + Math.sin(a) * (player.r + 6),
+      vx: Math.cos(a) * 14, vy: Math.sin(a) * 14,
+      angle: a, life: w.range / 14,
+      color: w.tracer, damage: w.damage,
+    });
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = baseAngle + (Math.random()-0.5)*0.9;
+    particles.push({
+      x: player.x + Math.cos(a)*player.r, y: player.y + Math.sin(a)*player.r,
+      vx: Math.cos(a)*(1+Math.random()*3), vy: Math.sin(a)*(1+Math.random()*3),
+      life: 0.15 + Math.random()*0.15, maxLife: 0.3,
+      color: w.color, r: 2 + Math.random()*3, type: "spark",
+    });
+  }
+  // поворот ТОЛЬКО для внешнего вида при выстреле без прицела
+  if (!fireAimActive) player.facing = baseAngle;
+}
+
+/* ============================================================
+   КОЛЛИЗИИ
+============================================================ */
+function circleRect(cx, cy, cr, rx, ry, rw, rh) {
+  const nx = Math.max(rx, Math.min(cx, rx+rw));
+  const ny = Math.max(ry, Math.min(cy, ry+rh));
+  return Math.hypot(cx-nx, cy-ny) < cr;
+}
+
+function tryMove(ent, nx, ny) {
+  // границы мира
+  nx = Math.max(ent.r, Math.min(CFG.worldW - ent.r, nx));
+  ny = Math.max(ent.r, Math.min(CFG.worldH - ent.r, ny));
+
+  // препятствия (валуны, пригорки)
+  for (const o of worldObjects) {
+    if (!o.solid) continue;
+    const d = Math.hypot(nx - o.x, ny - o.y);
+    if (d < o.r + ent.r) {
+      const ang = Math.atan2(ny - o.y, nx - o.x);
+      nx = o.x + Math.cos(ang) * (o.r + ent.r);
+      ny = o.y + Math.sin(ang) * (o.r + ent.r);
+    }
+  }
+
+  // стены зданий
+  for (const b of buildings) {
+    // если персонаж уже внутри — не блокируем выход, но блокируем стены изнутри
+    const inside = ent.x > b.x && ent.x < b.x+b.w && ent.y > b.y && ent.y < b.y+b.h;
+
+    // проверяем стены как прямоугольники (толщина 10)
+    const wallT = 10;
+    // верхняя стена
+    if (circleRect(nx, ny, ent.r, b.x, b.y, b.w, wallT)) {
+      if (inside || !inside) {
+        // пропускаем через дверь
+        if (!(nx > b.doorX && nx < b.doorX+b.doorW && ny < b.y + wallT)) {
+          if (ny < b.y + wallT/2 + ent.r) ny = b.y - ent.r;
+        }
+      }
+    }
+    // нижняя стена (с дверью)
+    if (circleRect(nx, ny, ent.r, b.x, b.y+b.h-wallT, b.w, wallT)) {
+      const inDoor = nx > b.doorX && nx < b.doorX+b.doorW;
+      if (!inDoor) {
+        if (ny > b.y+b.h-wallT/2 - ent.r) ny = b.y + b.h + ent.r;
+      }
+    }
+    // левая стена
+    if (circleRect(nx, ny, ent.r, b.x, b.y, wallT, b.h)) {
+      if (nx < b.x + wallT/2 + ent.r) nx = b.x - ent.r;
+    }
+    // правая стена
+    if (circleRect(nx, ny, ent.r, b.x+b.w-wallT, b.y, wallT, b.h)) {
+      if (nx > b.x+b.w-wallT/2 - ent.r) nx = b.x+b.w + ent.r;
+    }
+
+    // мебель (только когда внутри)
+    if (inside) {
+      for (const f of b.furniture) {
+        if (circleRect(nx, ny, ent.r, f.x, f.y, f.w, f.h)) {
+          // отталкивание
+          const cx = f.x + f.w/2, cy = f.y + f.h/2;
+          const ang = Math.atan2(ny - cy, nx - cx);
+          const far = Math.max(f.w, f.h)/2 + ent.r;
+          nx = cx + Math.cos(ang) * far;
+          ny = cy + Math.sin(ang) * far;
+        }
+      }
+    }
+  }
+
+  ent.x = nx; ent.y = ny;
+}
+
+function checkBuildingEntry() {
+  let inside = null;
+  for (const b of buildings) {
+    if (player.x > b.x + 8 && player.x < b.x+b.w - 8 &&
+        player.y > b.y + 8 && player.y < b.y+b.h - 8) {
+      inside = b; break;
+    }
+  }
+  player.insideBuilding = inside;
+}
+
+/* ============================================================
+   ОБНОВЛЕНИЕ
+============================================================ */
+function update(dt) {
+  if (!gameRunning) return;
+  gameTime += dt;
+  windTime += dt;
+  if (shootCooldown > 0) shootCooldown -= dt;
+
+  // Порывы ветра — плавно меняются
+  windStrength = 0.4 + Math.sin(windTime * 0.3) * 0.25 + Math.sin(windTime * 0.9) * 0.1;
+
+  /* --- Игрок --- */
+  let mx = 0, my = 0;
+  if (joyActive) { mx = joyDX; my = joyDY; }
+  if (keys["KeyW"] || keys["ArrowUp"]) my -= 1;
+  if (keys["KeyS"] || keys["ArrowDown"]) my += 1;
+  if (keys["KeyA"] || keys["ArrowLeft"]) mx -= 1;
+  if (keys["KeyD"] || keys["ArrowRight"]) mx += 1;
+  const ml = Math.hypot(mx, my);
+  if (ml > 1) { mx /= ml; my /= ml; }
+
+  player.isMoving = ml > 0.1;
+  if (player.isMoving) player.walkPhase += dt * 10;
+
+  const spd = CFG.playerSpeed * 60 * dt;
+  tryMove(player, player.x + mx*spd, player.y + my*spd);
+  checkBuildingEntry();
+
+  // Поворот только если нет активного прицела
+  if (!fireAimActive && !(mouseAim && mouseDown)) {
+    if (ml > 0.1) {
+      const moveAngle = Math.atan2(my, mx);
+      let d = normalizeAngle(moveAngle - player.facing);
+      player.facing += d * Math.min(1, dt * 12);
+    }
+    if (mouseAim && !joyActive) {
+      const targetAngle = aimAngleFromScreen(mouseX, mouseY);
+      let d = normalizeAngle(targetAngle - player.facing);
+      player.facing += d * Math.min(1, dt * 15);
+    }
+  }
+
+  // Автоогонь
+  if (fireActive && fireAimActive && getWeapon().auto) {
+    shoot(Math.atan2(fireDY, fireDX));
+    // поворачиваем к прицелу
+    let d = normalizeAngle(Math.atan2(fireDY, fireDX) - player.facing);
+    player.facing += d * Math.min(1, dt * 20);
+  } else if (fireActive && !fireAimActive && getWeapon().auto && Math.hypot(joyDX,joyDY) < 0.1 && !mouseAim) {
+    shoot(player.facing);
+  }
+  if (mouseDown) shoot(aimAngleFromScreen(mouseX, mouseY));
+
+  /* --- Пули --- */
+  for (let i = bullets.length - 1; i >= 0; i--) {
+    const b = bullets[i];
+    b.x += b.vx * 60 * dt; b.y += b.vy * 60 * dt;
+    b.life -= 60 * dt;
+    let hit = false;
+    for (const z of zombies) {
+      if (z.dead) continue;
+      if (Math.hypot(b.x - z.x, b.y - z.y) < z.r + 4) {
+        z.hp -= b.damage;
+        for (let k = 0; k < 8; k++) {
+          particles.push({
+            x: b.x, y: b.y,
+            vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5,
+            life: 0.3+Math.random()*0.3, maxLife: 0.6,
+            color: "#8b1a1a", r: 2+Math.random()*3, type: "blood",
+          });
+        }
+        if (z.hp <= 0) {
+          z.dead = true; score++;
+          document.getElementById("score").textContent = "Убито: " + score;
+          for (let k = 0; k < 22; k++) {
+            particles.push({
+              x: z.x, y: z.y,
+              vx: (Math.random()-0.5)*9, vy: (Math.random()-0.5)*9,
+              life: 0.4+Math.random()*0.5, maxLife: 0.9,
+              color: Math.random()<0.5?"#4a0a0a":"#6b1a1a",
+              r: 3+Math.random()*4, type: "blood",
+            });
+          }
+        }
+        hit = true; break;
+      }
+    }
+    if (!hit) {
+      for (const o of worldObjects) {
+        if (o.type === "fir" || o.type === "oak" || o.type === "dry" ||
+            o.type === "boulder" || o.type === "rock" || o.type === "hill") {
+          if (Math.hypot(b.x - o.x, b.y - o.y) < o.r * 0.7) { hit = true; break; }
+        }
+      }
+    }
+    if (!hit) {
+      for (const bd of buildings) {
+        if (b.x < bd.x+bd.w && b.x > bd.x && b.y < bd.y+bd.h && b.y > bd.y) {
+          // внутри здания - можно
+        } else if (circleRect(b.x, b.y, 3, bd.x, bd.y, bd.w, bd.h)) {
+          hit = true; break;
+        }
+      }
+    }
+    if (hit || b.life <= 0 || b.x < 0 || b.y < 0 || b.x > CFG.worldW || b.y > CFG.worldH) {
+      bullets.splice(i, 1);
+    }
+  }
+
+  /* --- Зомби --- */
+  for (const z of zombies) {
+    if (z.dead) continue;
+    z.wobble += dt * 5;
+    const dx = player.x - z.x, dy = player.y - z.y;
+    const dist = Math.hypot(dx, dy);
+    // если зомби снаружи и игрок внутри здания — зомби ломится к двери
+    const playerInside = player.insideBuilding;
+    if (dist > 0.1) {
+      const wob = Math.sin(z.wobble) * 0.3;
+      const spdZ = z.speed * 60 * dt;
+      let tx = player.x, ty = player.y;
+      if (playerInside && !(z.x > playerInside.x && z.x < playerInside.x+playerInside.w &&
+                            z.y > playerInside.y && z.y < playerInside.y+playerInside.h)) {
+        // идём к двери
+        tx = playerInside.doorX + playerInside.doorW/2;
+        ty = playerInside.doorY;
+      }
+      const tdx = tx - z.x, tdy = ty - z.y;
+      const td = Math.hypot(tdx, tdy) || 1;
+      z.x += (tdx/td) * spdZ + Math.cos(z.wobble) * wob * dt * 10;
+      z.y += (tdy/td) * spdZ + Math.sin(z.wobble) * wob * dt * 10;
+
+      const targetFace = Math.atan2(tdy, tdx);
+      let df = normalizeAngle(targetFace - z.facing);
+      z.facing += df * Math.min(1, dt * 4);
+      z.walkPhase += dt * 6;
+    }
+
+    // коллизии зомби с препятствиями
+    for (const o of worldObjects) {
+      if (!o.solid) continue;
+      const d = Math.hypot(z.x - o.x, z.y - o.y);
+      if (d < o.r + z.r) {
+        const ang = Math.atan2(z.y - o.y, z.x - o.x);
+        z.x = o.x + Math.cos(ang) * (o.r + z.r);
+        z.y = o.y + Math.sin(ang) * (o.r + z.r);
+      }
+    }
+
+    if (dist < z.r + player.r) {
+      if (!godMode) {
+        player.hp -= 12 * dt;
+        if (player.hp <= 0) { player.hp = 0; gameOver(); }
+      }
+    }
+    for (const z2 of zombies) {
+      if (z2 === z || z2.dead) continue;
+      const ddx = z.x - z2.x, ddy = z.y - z2.y;
+      const dd = Math.hypot(ddx, ddy);
+      if (dd < z.r + z2.r && dd > 0.1) {
+        const push = (z.r + z2.r - dd) * 0.5;
+        z.x += (ddx/dd)*push; z.y += (ddy/dd)*push;
+      }
+    }
+    z.x = Math.max(z.r, Math.min(CFG.worldW - z.r, z.x));
+    z.y = Math.max(z.r, Math.min(CFG.worldH - z.r, z.y));
+  }
+  for (let i = zombies.length - 1; i >= 0; i--) if (zombies[i].dead) zombies.splice(i, 1);
+  while (zombies.length < CFG.zombieCount && gameRunning) spawnZombie();
+
+  /* --- Листья --- */
+  updateLeaves(dt);
+
+  /* --- Частицы --- */
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * 60 * dt; p.y += p.vy * 60 * dt;
+    p.vx *= 0.96; p.vy *= 0.96;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  /* --- Камера --- */
+  const targetCamX = player.x - VW/2;
+  const targetCamY = player.y - VH/2;
+  camX += (targetCamX - camX) * Math.min(1, dt * 8);
+  camY += (targetCamY - camY) * Math.min(1, dt * 8);
+  camX = Math.max(0, Math.min(CFG.worldW - VW, camX));
+  camY = Math.max(0, Math.min(CFG.worldH - VH, camY));
+}
+
+function updateLeaves(dt) {
+  // спавн листьев в области экрана
+  if (Math.random() < 0.3) {
+    leaves.push({
+      x: camX + Math.random() * VW,
+      y: camY - 20,
+      vx: windStrength * 1.5 + (Math.random()-0.5)*0.5,
+      vy: 0.6 + Math.random()*0.8,
+      rot: Math.random()*Math.PI*2,
+      rotSpeed: (Math.random()-0.5)*4,
+      size: 4 + Math.random()*5,
+      color: ["#c87a2a","#a85a1a","#8a9a3a","#6a8a2a","#d89020"][Math.floor(Math.random()*5)],
+      life: 12,
+      phase: Math.random()*Math.PI*2,
+    });
+  }
+  for (let i = leaves.length - 1; i >= 0; i--) {
+    const l = leaves[i];
+    l.phase += dt * 2;
+    l.x += (l.vx + Math.sin(l.phase)*0.5 + windStrength) * 60 * dt;
+    l.y += l.vy * 60 * dt;
+    l.rot += l.rotSpeed * dt;
+    l.life -= dt;
+    if (l.life <= 0 || l.y > camY + VH + 50 || l.x > camX + VW + 50) leaves.splice(i, 1);
+  }
+  if (leaves.length > 80) leaves.splice(0, leaves.length - 80);
+}
+
+function gameOver() {
+  if (godMode) return;
+  gameRunning = false;
+  document.getElementById("gameOver").style.display = "flex";
+}
+
+/* ============================================================
+   ОТРИСОВКА
+============================================================ */
+function draw() {
+  // Фон вне мира
+  ctx.fillStyle = "#0d1a0d";
+  ctx.fillRect(0, 0, VW, VH);
+
+  // Земля
+  if (textureCanvas) {
+    const pat = ctx.createPattern(textureCanvas, "repeat");
+    ctx.save();
+    ctx.translate(-camX, -camY);
+    ctx.fillStyle = pat;
+    ctx.fillRect(0, 0, CFG.worldW, CFG.worldH);
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(-camX, -camY);
+
+  // Границы мира
+  ctx.strokeStyle = "rgba(15,30,10,0.9)";
+  ctx.lineWidth = 60;
+  ctx.strokeRect(-30, -30, CFG.worldW+60, CFG.worldH+60);
+
+  // ---- Объекты (не здания) ----
+  for (const o of worldObjects) {
+    if (o.x + o.r + 80 < camX || o.x - o.r - 80 > camX + VW ||
+        o.y + o.r + 80 < camY || o.y - o.r - 80 > camY + VH) continue;
+    if (o.type === "hill") drawHill(o);
+    else if (o.type === "bush") drawBush(o);
+    else if (o.type === "rock") drawRock(o);
+    else if (o.type === "boulder") drawBoulder(o);
+    else if (o.type === "fir") drawFir(o);
+    else if (o.type === "oak") drawOak(o);
+    else if (o.type === "dry") drawDryTree(o);
+  }
+
+  // ---- Зомби (под зданиями) ----
+  const playerInside = player.insideBuilding;
+  for (const z of zombies) {
+    if (z.x + 80 < camX || z.x - 80 > camX + VW || z.y + 80 < camY || z.y - 80 > camY + VH) continue;
+    // зомби внутри здания рисуем после здания (внутри)
+    const zInside = buildings.find(b => z.x > b.x && z.x < b.x+b.w && z.y > b.y && z.y < b.y+b.h);
+    if (!zInside) drawZombie(z);
+  }
+
+  // ---- Здания ----
+  for (const b of buildings) {
+    if (b.x + b.w + 100 < camX || b.x - 100 > camX + VW ||
+        b.y + b.h + 100 < camY || b.y - 100 > camY + VH) continue;
+    if (playerInside === b) {
+      drawBuildingInterior(b);
+    } else {
+      drawBuildingExterior(b);
+    }
+  }
+
+  // ---- Зомби внутри зданий ----
+  for (const z of zombies) {
+    const zInside = buildings.find(b => z.x > b.x && z.x < b.x+b.w && z.y > b.y && z.y < b.y+b.h);
+    if (zInside && (z.x + 80 >= camX && z.x - 80 <= camX + VW && z.y + 80 >= camY && z.y - 80 <= camY + VH)) {
+      drawZombie(z);
+    }
+  }
+
+  // ---- Игрок (всегда поверх зданий) ----
+  drawPlayer();
+
+  // ---- Пули ----
+  for (const b of bullets) {
+    const tailX = b.x - b.vx * 1.8;
+    const tailY = b.y - b.vy * 1.8;
+    const g = ctx.createLinearGradient(tailX, tailY, b.x, b.y);
+    g.addColorStop(0, "rgba(255,255,200,0)");
+    g.addColorStop(0.5, b.color);
+    g.addColorStop(1, "#ffffff");
+    ctx.strokeStyle = g;
+    ctx.lineWidth = 3; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(tailX, tailY); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(b.x, b.y, 2.5, 0, Math.PI*2); ctx.fill();
+  }
+
+  // ---- Частицы ----
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * alpha, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // ---- Листья (поверх всего) ----
+  for (const l of leaves) {
+    const alpha = Math.min(1, l.life / 2);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(l.x, l.y);
+    ctx.rotate(l.rot);
+    ctx.fillStyle = l.color;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, l.size, l.size*0.5, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(80,40,10,0.4)";
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(-l.size, 0);
+    ctx.lineTo(l.size, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+
+  // ---- Трассер-прицел (поверх всего) ----
+  if (fireAimActive && fireActive) {
+    const w = getWeapon();
+    const sx = player.x, sy = player.y;
+    const aimA = Math.atan2(fireDY, fireDX);
+    const len = 320;
+    const ex = sx + Math.cos(aimA) * len;
+    const ey = sy + Math.sin(aimA) * len;
+
+    ctx.save();
+    // Конус ограничения
+    ctx.strokeStyle = "rgba(80,255,80,0.18)";
+    ctx.lineWidth = 2;
+    const diff = normalizeAngle(aimA - player.facing);
+    // ограничиваем конус
+    const maxA = w.maxAngle;
+    for (const sign of [-1, 1]) {
+      const a = player.facing + sign * maxA;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(sx + Math.cos(a) * len, sy + Math.sin(a) * len);
+      ctx.stroke();
+    }
+    // Прицельная линия — точно по направлению пальца
+    ctx.strokeStyle = "rgba(120,255,120,0.85)";
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // Прицел
+    ctx.strokeStyle = "rgba(120,255,120,0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(ex, ey, 10, 0, Math.PI*2); ctx.stroke();
+    ctx.fillStyle = "rgba(120,255,120,0.9)";
+    ctx.beginPath(); ctx.arc(ex, ey, 3, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  /* --- HUD --- */
+  drawHUD();
+  drawMinimap();
+}
+
+function drawHUD() {
+  const hpW = 180, hpH = 14;
+  const hpX = 15, hpY = 15;
+  ctx.fillStyle = "rgba(0,0,0,0.55)";
+  ctx.fillRect(hpX-2, hpY-2, hpW+4, hpH+4);
+  ctx.fillStyle = "#221111";
+  ctx.fillRect(hpX, hpY, hpW, hpH);
+  const hpFrac = Math.max(0, player.hp / 100);
+  const hpGrad = ctx.createLinearGradient(hpX, 0, hpX+hpW, 0);
+  if (godMode) { hpGrad.addColorStop(0,"#33aaff"); hpGrad.addColorStop(1,"#88ddff"); }
+  else { hpGrad.addColorStop(0,"#e04040"); hpGrad.addColorStop(1,"#ff8888"); }
+  ctx.fillStyle = hpGrad;
+  ctx.fillRect(hpX, hpY, hpW * hpFrac, hpH);
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 11px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(godMode ? "∞ БЕССМЕРТИЕ ∞" : "HP " + Math.ceil(player.hp), hpX + hpW/2, hpY + hpH - 3);
+
+  // Индикатор "внутри здания"
+  if (player.insideBuilding) {
+    ctx.fillStyle = "rgba(80,180,255,0.85)";
+    ctx.font = "bold 13px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("🏠 В ЗДАНИИ", 15, hpY + hpH + 22);
+  }
+}
+
+/* ============================================================
+   ДЕРЕВЬЯ
+============================================================ */
+function drawFir(o) {
+  const {x, y, r, shade, phase} = o;
+  const sway = Math.sin(windTime * 2 + phase) * windStrength * o.windAmp * 4;
+  // Ствол
+  ctx.fillStyle = "#3a2a15";
+  ctx.fillRect(x - 4, y - 2, 8, r * 0.6);
+  ctx.fillStyle = "#2a1a0a";
+  ctx.fillRect(x + 1, y - 2, 3, r * 0.6);
+  // Крона
+  for (let i = 0; i < 4; i++) {
+    const ly = y - i * r * 0.55;
+    const lw = r * (1 - i * 0.18);
+    const lh = r * 0.85;
+    const swayOffset = (i+1) * sway * 0.3;
+    const g = ctx.createLinearGradient(x - lw, ly - lh, x + lw, ly);
+    g.addColorStop(0, `rgb(${20+shade*20|0},${60+shade*35|0},${25+shade*15|0})`);
+    g.addColorStop(0.5, `rgb(${35+shade*30|0},${100+shade*50|0},${40+shade*20|0})`);
+    g.addColorStop(1, `rgb(${12+shade*12|0},${45+shade*25|0},${15+shade*10|0})`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x + swayOffset, ly - lh);
+    ctx.lineTo(x - lw + swayOffset, ly);
+    ctx.lineTo(x + lw + swayOffset, ly);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(10,30,10,0.35)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+  // Тень
+  const shadowG = ctx.createRadialGradient(x + 3, y + 3, 0, x + 3, y + 3, r*0.8);
+  shadowG.addColorStop(0, "rgba(0,0,0,0.3)");
+  shadowG.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = shadowG;
+  ctx.beginPath(); ctx.ellipse(x + 3, y + 3, r*0.9, r*0.5, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function drawOak(o) {
+  const {x, y, r, shade, phase} = o;
+  const sway = Math.sin(windTime * 1.8 + phase) * windStrength * o.windAmp * 5;
+  // Ствол
+  const g = ctx.createLinearGradient(x - r*0.2, y, x + r*0.2, y);
+  g.addColorStop(0, "#3a2a15"); g.addColorStop(0.5, `rgb(${60+shade*20|0},${40+shade*15|0},${20+shade*10|0})`); g.addColorStop(1, "#2a1a0a");
+  ctx.fillStyle = g;
+  ctx.fillRect(x - r*0.15, y - 2, r*0.3, r * 0.7);
+  // Крона — несколько шаров
+  const cx = x + sway;
+  const cy = y - r*0.7;
+  const ballR = r * 0.9;
+  // Задние шары
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2 + phase;
+    const bx = cx + Math.cos(a) * r*0.4;
+    const by = cy + Math.sin(a) * r*0.3 - r*0.2;
+    const bgrad = ctx.createRadialGradient(bx - ballR*0.3, by - ballR*0.3, 0, bx, by, ballR*0.7);
+    bgrad.addColorStop(0, `rgb(${60+shade*40|0},${110+shade*50|0},${40+shade*20|0})`);
+    bgrad.addColorStop(0.7, `rgb(${35+shade*25|0},${75+shade*35|0},${25+shade*15|0})`);
+    bgrad.addColorStop(1, `rgb(${15+shade*15|0},${45+shade*20|0},${12+shade*8|0})`);
+    ctx.fillStyle = bgrad;
+    ctx.beginPath(); ctx.arc(bx, by, ballR*0.7, 0, Math.PI*2); ctx.fill();
+  }
+  // Передний шар
+  const mainGrad = ctx.createRadialGradient(cx - ballR*0.3, cy - ballR*0.4, 0, cx, cy, ballR);
+  mainGrad.addColorStop(0, `rgb(${80+shade*40|0},${140+shade*50|0},${50+shade*25|0})`);
+  mainGrad.addColorStop(0.6, `rgb(${45+shade*30|0},${90+shade*40|0},${30+shade*18|0})`);
+  mainGrad.addColorStop(1, `rgb(${20+shade*15|0},${55+shade*25|0},${18+shade*10|0})`);
+  ctx.fillStyle = mainGrad;
+  ctx.beginPath(); ctx.arc(cx, cy, ballR, 0, Math.PI*2); ctx.fill();
+  // Контур
+  ctx.strokeStyle = "rgba(10,30,10,0.35)";
+  ctx.lineWidth = 1.5; ctx.stroke();
+  // Блики на листьях
+  ctx.fillStyle = "rgba(180,220,120,0.15)";
+  ctx.beginPath(); ctx.arc(cx - ballR*0.3, cy - ballR*0.4, ballR*0.4, 0, Math.PI*2); ctx.fill();
+  // Тень
+  const shadowG = ctx.createRadialGradient(x + 5, y + 5, 0, x + 5, y + 5, r);
+  shadowG.addColorStop(0, "rgba(0,0,0,0.35)");
+  shadowG.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = shadowG;
+  ctx.beginPath(); ctx.ellipse(x + 5, y + 5, r*1.1, r*0.6, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function drawDryTree(o) {
+  const {x, y, r, shade, phase} = o;
+  const sway = Math.sin(windTime * 2.5 + phase) * windStrength * o.windAmp * 3;
+  const g = ctx.createLinearGradient(x - r*0.5, y, x + r*0.5, y);
+  g.addColorStop(0, "#2a1a0a");
+  g.addColorStop(0.5, `rgb(${75+shade*25|0},${55+shade*18|0},${30+shade*12|0})`);
+  g.addColorStop(1, "#1f1205");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x - r*0.18, y + r*0.3);
+  ctx.lineTo(x - r*0.12, y - r*0.9);
+  ctx.lineTo(x + r*0.12, y - r*0.9);
+  ctx.lineTo(x + r*0.18, y + r*0.3);
+  ctx.closePath(); ctx.fill();
+  // Ветки
+  ctx.strokeStyle = `rgb(${60+shade*20|0},${45+shade*12|0},${25+shade*8|0})`;
+  ctx.lineCap = "round";
+  for (let i = 0; i < 5; i++) {
+    const by = y - r * (0.25 + i*0.16);
+    const dir = i % 2 === 0 ? 1 : -1;
+    const swayBranch = sway * (0.3 + i*0.15);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, by);
+    ctx.lineTo(x + dir * r * 0.7 + swayBranch, by - r * 0.35);
+    ctx.stroke();
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x + dir * r * 0.4 + swayBranch*0.5, by - r*0.18);
+    ctx.lineTo(x + dir * r * 0.65 + swayBranch, by - r * 0.5);
+    ctx.stroke();
+  }
+  // Тень
+  const shG = ctx.createRadialGradient(x + 3, y + 3, 0, x + 3, y + 3, r*0.8);
+  shG.addColorStop(0, "rgba(0,0,0,0.3)"); shG.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = shG;
+  ctx.beginPath(); ctx.ellipse(x + 3, y + 3, r*0.8, r*0.4, 0, 0, Math.PI*2); ctx.fill();
+}
+
+function drawBush(o) {
+  const {x, y, r, shade, phase} = o;
+  const sway = Math.sin(windTime * 3 + phase) * windStrength * o.windAmp * 3;
+  for (let i = 0; i < 3; i++) {
+    const a = (i/3) * Math.PI * 2 + phase;
+    const bx = x + Math.cos(a) * r * 0.35 + sway;
+    const by = y + Math.sin(a) * r * 0.25;
+    const rr = r * 0.6;
+    const g = ctx.createRadialGradient(bx - rr*0.3, by - rr*0.4, 0, bx, by, rr);
+    g.addColorStop(0, `rgba(${70+shade*40|0},${140+shade*60|0},${50+shade*30|0},0.95)`);
+    g.addColorStop(1, "rgba(25,60,20,0.7)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(bx, by, rr, 0, Math.PI*2); ctx.fill();
+  }
+  // Верхний слой
+  const g2 = ctx.createRadialGradient(x - r*0.3 + sway, y - r*0.4, 0, x + sway, y, r);
+  g2.addColorStop(0, `rgba(${90+shade*50|0},${160+shade*50|0},${60+shade*30|0},0.9)`);
+  g2.addColorStop(1, "rgba(35,70,25,0.65)");
+  ctx.fillStyle = g2;
+  ctx.beginPath(); ctx.arc(x + sway, y, r*0.9, 0, Math.PI*2); ctx.fill();
+}
+
+/* ============================================================
+   КАМНИ И ВАЛУНЫ
+============================================================ */
+function drawRock(o) {
+  const {x, y, r, shade} = o;
+  const g = ctx.createRadialGradient(x - r*0.35, y - r*0.4, r*0.05, x, y, r);
+  const base = 85 + shade*50;
+  g.addColorStop(0, `rgb(${base+45|0},${base+45|0},${base+40|0})`);
+  g.addColorStop(0.5, `rgb(${base|0},${base|0},${base-8|0})`);
+  g.addColorStop(1, `rgb(${base-50|0},${base-50|0},${base-55|0})`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  // неровная форма
+  const seed = o.x * 0.01 + o.y * 0.02;
+  for (let i = 0; i <= 8; i++) {
+    const a = (i/8) * Math.PI * 2;
+    const rr = r * (0.85 + Math.sin(seed + i*1.7)*0.15);
+    const px = x + Math.cos(a) * rr;
+    const py = y + Math.sin(a) * rr * 0.8;
+    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+  }
+  ctx.closePath(); ctx.fill();
+  // Блик
+  ctx.fillStyle = "rgba(255,255,255,0.1)";
+  ctx.beginPath();
+  ctx.ellipse(x - r*0.25, y - r*0.3, r*0.3, r*0.18, -0.5, 0, Math.PI*2);
+  ctx.fill();
+  // Тень
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.beginPath();
+  ctx.ellipse(x + 2, y + r*0.5, r*0.9, r*0.3, 0, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawBoulder(o) {
+  const {x, y, r, shade} = o;
+  // Тень большая
+  const shG = ctx.createRadialGradient(x + 6, y + r*0.5, 0, x + 6, y + r*0.5, r*1.3);
+  shG.addColorStop(0, "rgba(0,0,0,0.45)");
+  shG.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = shG;
+  ctx.beginPath(); ctx.ellipse(x + 6, y + r*0.5, r*1.2, r*0.5, 0, 0, Math.PI*2); ctx.fill();
+
+  const seed = o.x * 0.01 + o.y * 0.02;
+  // Основная форма — многоугольник
+  const base = 70 + shade*40;
+  const g = ctx.createRadialGradient(x - r*0.35, y - r*0.45, r*0.05, x, y, r);
+  g.addColorStop(0, `rgb(${base+70|0},${base+70|0},${base+65|0})`);
+  g.addColorStop(0.4, `rgb(${base+30|0},${base+30|0},${base+25|0})`);
+  g.addColorStop(0.8, `rgb(${base|0},${base|0},${base-10|0})`);
+  g.addColorStop(1, `rgb(${base-50|0},${base-50|0},${base-55|0})`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  const pts = [];
+  const N = 10;
+  for (let i = 0; i < N; i++) {
+    const a = (i/N) * Math.PI * 2;
+    const rr = r * (0.75 + Math.sin(seed + i*2.1)*0.25);
+    pts.push([x + Math.cos(a)*rr, y + Math.sin(a)*rr*0.9]);
+  }
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < N; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath(); ctx.fill();
+
+  // Внутренние трещины
+  ctx.strokeStyle = "rgba(20,20,20,0.4)";
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 3; i++) {
+    const a = seed + i*2.1;
+    ctx.beginPath();
+    ctx.moveTo(x + Math.cos(a)*r*0.3, y + Math.sin(a)*r*0.3);
+    ctx.lineTo(x + Math.cos(a)*r*0.8, y + Math.sin(a)*r*0.8);
+    ctx.stroke();
+  }
+
+  // Блик
+  ctx.fillStyle = "rgba(255,255,255,0.15)";
+  ctx.beginPath();
+  ctx.ellipse(x - r*0.3, y - r*0.4, r*0.3, r*0.18, -0.6, 0, Math.PI*2);
+  ctx.fill();
+
+  // Мох
+  ctx.fillStyle = "rgba(60,100,40,0.5)";
+  for (let i = 0; i < 3; i++) {
+    const a = seed*2 + i;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a)*r*0.5, y + Math.sin(a)*r*0.4, r*0.15, 0, Math.PI*2);
+    ctx.fill();
+  }
+}
+
+function drawHill(o) {
+  const {x, y, r, shade} = o;
+  // Большая тень
+  const shG = ctx.createRadialGradient(x + r*0.15, y + r*0.4, 0, x + r*0.15, y + r*0.4, r*1.5);
+  shG.addColorStop(0, "rgba(0,0,0,0.35)");
+  shG.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = shG;
+  ctx.beginPath(); ctx.ellipse(x + r*0.15, y + r*0.4, r*1.4, r*0.7, 0, 0, Math.PI*2); ctx.fill();
+
+  // Пригорок — эллипс с объёмом
+  const g = ctx.createRadialGradient(x - r*0.3, y - r*0.3, 0, x, y, r);
+  g.addColorStop(0, `rgb(${85+shade*35|0},${130+shade*45|0},${55+shade*20|0})`);
+  g.addColorStop(0.5, `rgb(${55+shade*25|0},${90+shade*35|0},${35+shade*15|0})`);
+  g.addColorStop(1, `rgb(${30+shade*15|0},${55+shade*20|0},${20+shade*10|0})`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r*0.65, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Травинки сверху
+  ctx.strokeStyle = "rgba(80,140,50,0.7)";
+  ctx.lineWidth = 1.5;
+  const rnd = seededRandom(o.seed);
+  for (let i = 0; i < 15; i++) {
+    const a = rnd()*Math.PI*2;
+    const rr = rnd() * r * 0.8;
+    const gx = x + Math.cos(a)*rr;
+    const gy = y + Math.sin(a)*rr*0.6;
+    const sway = Math.sin(windTime*3 + i) * windStrength * 2;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy);
+    ctx.lineTo(gx + sway, gy - 4 - rnd()*4);
+    ctx.stroke();
+  }
+
+  // Блик
+  ctx.fillStyle = "rgba(255,255,180,0.1)";
+  ctx.beginPath();
+  ctx.ellipse(x - r*0.3, y - r*0.25, r*0.4, r*0.2, -0.3, 0, Math.PI*2);
+  ctx.fill();
+}
+
+/* ============================================================
+   ЗДАНИЯ
+============================================================ */
+function drawBuildingExterior(b) {
+  const {x, y, w, h, colors} = b;
+  // Тень под домом
+  const shG = ctx.createRadialGradient(x + w/2, y + h + 15, 0, x + w/2, y + h + 15, w*0.7);
+  shG.addColorStop(0, "rgba(0,0,0,0.45)");
+  shG.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = shG;
+  ctx.beginPath(); ctx.ellipse(x + w/2, y + h + 10, w*0.65, h*0.35, 0, 0, Math.PI*2); ctx.fill();
+
+  // Фундамент
+  ctx.fillStyle = "rgba(40,30,20,0.7)";
+  ctx.fillRect(x - 6, y - 6, w + 12, h + 12);
+
+  // Стены — текстура дерева
+  const wallGrad = ctx.createLinearGradient(x, y, x, y+h);
+  wallGrad.addColorStop(0, colors.walls);
+  wallGrad.addColorStop(0.5, shadeColor(colors.walls, -15));
+  wallGrad.addColorStop(1, shadeColor(colors.walls, -30));
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(x, y, w, h);
+
+  // Доски/брёвна по горизонтали
+  ctx.strokeStyle = "rgba(0,0,0,0.15)";
+  ctx.lineWidth = 1;
+  for (let ly = y + 18; ly < y + h; ly += 18) {
+    ctx.beginPath(); ctx.moveTo(x, ly); ctx.lineTo(x + w, ly); ctx.stroke();
+  }
+  // По вертикали (балки)
+  ctx.strokeStyle = "rgba(0,0,0,0.1)";
+  for (let lx = x + 60; lx < x + w - 20; lx += 80) {
+    ctx.beginPath(); ctx.moveTo(lx, y); ctx.lineTo(lx, y + h); ctx.stroke();
+  }
+
+  // Крыша — «трёхмерный» вид, наклон сверху
+  const roofGrad = ctx.createLinearGradient(x, y - 30, x, y);
+  roofGrad.addColorStop(0, shadeColor(colors.roof, 20));
+  roofGrad.addColorStop(1, shadeColor(colors.roof, -25));
+  ctx.fillStyle = roofGrad;
+  ctx.beginPath();
+  ctx.moveTo(x - 12, y);
+  ctx.lineTo(x + w/2, y - 40);
+  ctx.lineTo(x + w + 12, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Черепица
+  ctx.strokeStyle = "rgba(0,0,0,0.15)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 6; i++) {
+    const t = i / 6;
+    const ly = y - 40 * t;
+    const lx1 = x - 12 + (w/2 + 12) * (1 - t);
+    const lx2 = x + w + 12 - (w/2 + 12) * (1 - t);
+    ctx.beginPath(); ctx.moveTo(lx1, ly); ctx.lineTo(lx2, ly); ctx.stroke();
+  }
+
+  // Окна
+  for (const win of b.windows) {
+    // рама
+    ctx.fillStyle = "#2a1a0a";
+    ctx.fillRect(win.x - 3, win.y - 3, win.w + 6, win.h + 6);
+    // стекло с градиентом
+    const glassGrad = ctx.createLinearGradient(win.x, win.y, win.x + win.w, win.y + win.h);
+    glassGrad.addColorStop(0, "rgba(120,180,220,0.7)");
+    glassGrad.addColorStop(0.5, "rgba(60,100,140,0.5)");
+    glassGrad.addColorStop(1, "rgba(30,50,70,0.6)");
+    ctx.fillStyle = glassGrad;
+    ctx.fillRect(win.x, win.y, win.w, win.h);
+    // блик
+    ctx.fillStyle = "rgba(255,255,255,0.25)";
+    ctx.beginPath();
+    ctx.moveTo(win.x, win.y);
+    ctx.lineTo(win.x + win.w*0.5, win.y);
+    ctx.lineTo(win.x, win.y + win.h*0.5);
+    ctx.closePath(); ctx.fill();
+    // переплёт
+    ctx.strokeStyle = "#2a1a0a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(win.x + win.w/2, win.y); ctx.lineTo(win.x + win.w/2, win.y+win.h);
+    ctx.moveTo(win.x, win.y + win.h/2); ctx.lineTo(win.x+win.w, win.y + win.h/2);
+    ctx.stroke();
+  }
+
+  // Дверь
+  const doorGrad = ctx.createLinearGradient(b.doorX, b.doorY, b.doorX, b.doorY + 70);
+  doorGrad.addColorStop(0, "#4a2a15");
+  doorGrad.addColorStop(1, "#2a1508");
+  ctx.fillStyle = doorGrad;
+  ctx.fillRect(b.doorX, b.doorY - 10, b.doorW, 70);
+  // ручка
+  ctx.fillStyle = "#d4a850";
+  ctx.beginPath();
+  ctx.arc(b.doorX + b.doorW - 10, b.doorY + 25, 3, 0, Math.PI*2);
+  ctx.fill();
+  // рамка двери
+  ctx.strokeStyle = "#1a0a00";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(b.doorX, b.doorY - 10, b.doorW, 70);
+}
+
+function drawBuildingInterior(b) {
+  const {x, y, w, h, colors} = b;
+  // Затемнённый пол
+  const floorGrad = ctx.createLinearGradient(x, y, x, y+h);
+  floorGrad.addColorStop(0, shadeColor(colors.floor, -40));
+  floorGrad.addColorStop(1, shadeColor(colors.floor, -60));
+  ctx.fillStyle = floorGrad;
+  ctx.fillRect(x, y, w, h);
+
+  // Доски пола
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.lineWidth = 1;
+  for (let ly = y + 25; ly < y + h; ly += 25) {
+    ctx.beginPath(); ctx.moveTo(x, ly); ctx.lineTo(x + w, ly); ctx.stroke();
+  }
+  for (let lx = x + 40; lx < x + w; lx += 80) {
+    ctx.beginPath(); ctx.moveTo(lx, y); ctx.lineTo(lx, y + h); ctx.stroke();
+  }
+
+  // Стены (тёмные изнутри)
+  ctx.strokeStyle = shadeColor(colors.walls, -50);
+  ctx.lineWidth = 14;
+  ctx.strokeRect(x + 7, y + 7, w - 14, h - 14);
+  ctx.strokeStyle = "rgba(0,0,0,0.4)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x + 14, y + 14, w - 28, h - 28);
+
+  // Окна изнутри (свет снаружи)
+  for (const win of b.windows) {
+    ctx.fillStyle = "rgba(150,200,240,0.4)";
+    ctx.fillRect(win.x, win.y, win.w, win.h);
+    ctx.strokeStyle = "#2a1a0a";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(win.x, win.y, win.w, win.h);
+    ctx.beginPath();
+    ctx.moveTo(win.x + win.w/2, win.y); ctx.lineTo(win.x + win.w/2, win.y+win.h);
+    ctx.moveTo(win.x, win.y + win.h/2); ctx.lineTo(win.x+win.w, win.y + win.h/2);
+    ctx.stroke();
+  }
+
+  // Дверь (проём)
+  ctx.fillStyle = "rgba(180,200,220,0.3)";
+  ctx.fillRect(b.doorX, b.doorY - 10, b.doorW, 60);
+  ctx.strokeStyle = "#1a0a00";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(b.doorX, b.doorY - 10, b.doorW, 60);
+
+  // Мебель
+  for (const f of b.furniture) {
+    if (f.type === "table") drawTable(f);
+    else if (f.type === "crate") drawCrate(f);
+    else if (f.type === "bed") drawBed(f);
+  }
+
+  // Лёгкое затемнение по краям (виньетка)
+  const vg = ctx.createRadialGradient(x + w/2, y + h/2, w*0.3, x + w/2, y + h/2, w*0.7);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(0,0,0,0.5)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(x, y, w, h);
+
+  // Надпись "ВНУТРИ"
+  ctx.fillStyle = "rgba(180,220,255,0.5)";
+  ctx.font = "bold 14px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText("🏠 ВНУТРИ", x + w/2, y + 20);
+}
+
+function drawTable(f) {
+  // стол
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath();
+  ctx.ellipse(f.x + f.w/2 + 3, f.y + f.h/2 + 4, f.w*0.6, f.h*0.6, 0, 0, Math.PI*2);
+  ctx.fill();
+  const g = ctx.createLinearGradient(f.x, f.y, f.x+f.w, f.y+f.h);
+  g.addColorStop(0, "#6a4a2a");
+  g.addColorStop(0.5, "#8a6a3a");
+  g.addColorStop(1, "#4a2a10");
+  ctx.fillStyle = g;
+  ctx.fillRect(f.x, f.y, f.w, f.h);
+  ctx.strokeStyle = "#2a1a08";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(f.x, f.y, f.w, f.h);
+  // предметы на столе
+  ctx.fillStyle = "#c8a050";
+  ctx.beginPath(); ctx.arc(f.x + f.w*0.3, f.y + f.h*0.4, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = "#8a3030";
+  ctx.fillRect(f.x + f.w*0.6, f.y + f.h*0.3, 6, 8);
+}
+
+function drawCrate(f) {
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.fillRect(f.x + 4, f.y + 4, f.w, f.h);
+  const g = ctx.createLinearGradient(f.x, f.y, f.x+f.w, f.y+f.h);
+  g.addColorStop(0, "#7a5a2a");
+  g.addColorStop(0.5, "#a87a3a");
+  g.addColorStop(1, "#4a3010");
+  ctx.fillStyle = g;
+  ctx.fillRect(f.x, f.y, f.w, f.h);
+  ctx.strokeStyle = "#3a1a08";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(f.x, f.y, f.w, f.h);
+  // крест
+  ctx.beginPath();
+  ctx.moveTo(f.x, f.y); ctx.lineTo(f.x+f.w, f.y+f.h);
+  ctx.moveTo(f.x+f.w, f.y); ctx.lineTo(f.x, f.y+f.h);
+  ctx.stroke();
+}
+
+function drawBed(f) {
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.fillRect(f.x + 3, f.y + 3, f.w, f.h);
+  // матрас
+  ctx.fillStyle = "#8a5a3a";
+  ctx.fillRect(f.x, f.y, f.w, f.h);
+  ctx.strokeStyle = "#3a2a1a";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(f.x, f.y, f.w, f.h);
+  // подушка
+  ctx.fillStyle = "#d8c8a8";
+  ctx.fillRect(f.x + 3, f.y + 3, 14, f.h - 6);
+  // одеяло
+  ctx.fillStyle = "#5a3a6a";
+  ctx.fillRect(f.x + 20, f.y + 2, f.w - 22, f.h - 4);
+  // складки
+  ctx.strokeStyle = "rgba(0,0,0,0.2)";
+  ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(f.x + 20 + i*12, f.y);
+    ctx.lineTo(f.x + 20 + i*12, f.y + f.h);
+    ctx.stroke();
+  }
+}
+
+function shadeColor(hex, percent) {
+  const num = parseInt(hex.replace("#",""), 16);
+  let r = (num >> 16) + percent;
+  let g = ((num >> 8) & 0xff) + percent;
+  let b = (num & 0xff) + percent;
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return "#" + (r<<16 | g<<8 | b).toString(16).padStart(6,'0');
+}
+
+/* ============================================================
+   РЕАЛИСТИЧНЫЙ ЗОМБИ
+============================================================ */
+function drawZombie(z) {
+  const {x, y, r, facing} = z;
+  const skin = z.skinTone;
+  const step = Math.sin(z.walkPhase);
+  const rS = r * z.bodyScale;
+
+  // Тень
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.4)";
+  ctx.beginPath();
+  ctx.ellipse(x + 2, y + 5, rS*1.05, rS*0.8, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(facing + Math.PI/2);
+
+  // --- Ноги (в штанах) ---
+  const legSwing = step * 4;
+  for (const side of [-1, 1]) {
+    const lx = side * rS * 0.32;
+    const ly = rS * 0.55 + (side > 0 ? -legSwing : legSwing);
+    // брюки
+    const pantsGrad = ctx.createLinearGradient(lx - rS*0.2, ly, lx + rS*0.2, ly + rS*0.6);
+    pantsGrad.addColorStop(0, `rgb(${z.clothHue*0.7|0},${z.clothHue*0.5|0},${z.clothHue*0.3|0})`);
+    pantsGrad.addColorStop(1, `rgb(${z.clothHue*0.5|0},${z.clothHue*0.35|0},${z.clothHue*0.2|0})`);
+    ctx.fillStyle = pantsGrad;
+    ctx.beginPath();
+    ctx.ellipse(lx, ly, rS*0.24, rS*0.65, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.lineWidth = 1.2; ctx.stroke();
+    // обувь
+    ctx.fillStyle = "#1a1008";
+    ctx.beginPath();
+    ctx.ellipse(lx, ly + rS*0.5, rS*0.25, rS*0.28, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // --- Торс (рваная одежда) ---
+  const torsoGrad = ctx.createRadialGradient(-rS*0.3, -rS*0.4, rS*0.1, 0, 0, rS*1.1);
+  const ch = z.clothHue;
+  torsoGrad.addColorStop(0, `rgb(${Math.min(255,ch*1.5)|0},${Math.min(255,ch*1.1)|0},${Math.min(255,ch*0.7)|0})`);
+  torsoGrad.addColorStop(0.5, `rgb(${ch|0},${ch*0.7|0},${ch*0.4|0})`);
+  torsoGrad.addColorStop(1, `rgb(${ch*0.5|0},${ch*0.35|0},${ch*0.2|0})`);
+  ctx.fillStyle = torsoGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rS*0.82, rS*0.72, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(15,10,5,0.75)";
+  ctx.lineWidth = 1.5; ctx.stroke();
+
+  // Пятна на торсе
+  ctx.fillStyle = `rgba(80,10,10,${z.blood*0.8})`;
+  ctx.beginPath();
+  ctx.ellipse(-rS*0.3, rS*0.15, rS*0.24, rS*0.16, 0.4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(rS*0.35, -rS*0.1, rS*0.16, rS*0.1, -0.3, 0, Math.PI*2);
+  ctx.fill();
+  // грязь
+  ctx.fillStyle = "rgba(40,30,20,0.4)";
+  ctx.beginPath();
+  ctx.ellipse(rS*0.1, rS*0.4, rS*0.3, rS*0.12, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // --- Руки (вытянуты вперёд) ---
+  const armReach = rS * 1.15;
+  const armWob = Math.sin(z.wobble) * rS * 0.1;
+  for (const side of [-1, 1]) {
+    const ax = side * rS * 0.7;
+    const ay = -rS * 0.15;
+    // плечо/рукав
+    const sleeveGrad = ctx.createLinearGradient(ax, ay, ax, ay - armReach);
+    sleeveGrad.addColorStop(0, `rgb(${ch*0.9|0},${ch*0.6|0},${ch*0.4|0})`);
+    sleeveGrad.addColorStop(1, `rgb(${ch*0.6|0},${ch*0.4|0},${ch*0.25|0})`);
+    ctx.strokeStyle = sleeveGrad;
+    ctx.lineWidth = rS*0.26;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(ax*0.7, ay - armReach*0.5 + armWob*side);
+    ctx.stroke();
+    // предплечье — голая кожа
+    const skinGrad = ctx.createLinearGradient(ax*0.7, ay - armReach*0.5, ax*0.45, ay - armReach);
+    skinGrad.addColorStop(0, `rgb(${110*skin|0},${130*skin|0},${95*skin|0})`);
+    skinGrad.addColorStop(0.5, `rgb(${90*skin|0},${105*skin|0},${75*skin|0})`);
+    skinGrad.addColorStop(1, `rgb(${70*skin|0},${80*skin|0},${55*skin|0})`);
+    ctx.strokeStyle = skinGrad;
+    ctx.lineWidth = rS*0.21;
+    ctx.beginPath();
+    ctx.moveTo(ax*0.7, ay - armReach*0.5 + armWob*side);
+    ctx.lineTo(ax*0.42, ay - armReach*0.98 + armWob*side);
+    ctx.stroke();
+    // кисть с пальцами
+    const handX = ax*0.42;
+    const handY = ay - armReach*0.98 + armWob*side;
+    ctx.fillStyle = `rgb(${90*skin|0},${105*skin|0},${75*skin|0})`;
+    ctx.beginPath();
+    ctx.arc(handX, handY, rS*0.15, 0, Math.PI*2);
+    ctx.fill();
+    // пальцы
+    ctx.strokeStyle = `rgb(${60*skin|0},${70*skin|0},${50*skin|0})`;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    for (let fi = -1; fi <= 1; fi++) {
+      ctx.beginPath();
+      ctx.moveTo(handX + fi*4, handY);
+      ctx.lineTo(handX + fi*5, handY - rS*0.18);
+      ctx.stroke();
+    }
+    // кровь на руках
+    ctx.fillStyle = `rgba(120,10,10,${z.blood*0.6})`;
+    ctx.beginPath();
+    ctx.arc(handX + 3, handY - 2, 3, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // --- Голова ---
+  const headR = rS * 0.52;
+  const headY = -rS * 0.18;
+  // Волосы
+  ctx.fillStyle = z.hairColor;
+  ctx.beginPath();
+  ctx.arc(0, headY - 1, headR * 1.08, 0, Math.PI*2);
+  ctx.fill();
+  // Пряди
+  const rndH = seededRandom(z.x*13 + z.y*7);
+  ctx.strokeStyle = z.hairColor;
+  ctx.lineWidth = 2.5;
+  for (let i = 0; i < 6; i++) {
+    const a = rndH()*Math.PI*2;
+    const r1 = headR*0.9, r2 = headR*1.25;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*r1, headY + Math.sin(a)*r1);
+    ctx.lineTo(Math.cos(a)*r2, headY + Math.sin(a)*r2);
+    ctx.stroke();
+  }
+  // Лицо
+  const faceGrad = ctx.createRadialGradient(-headR*0.25, headY - headR*0.3, headR*0.1, 0, headY, headR);
+  faceGrad.addColorStop(0, `rgb(${165*skin|0},${185*skin|0},${140*skin|0})`);
+  faceGrad.addColorStop(0.5, `rgb(${130*skin|0},${150*skin|0},${105*skin|0})`);
+  faceGrad.addColorStop(1, `rgb(${80*skin|0},${95*skin|0},${65*skin|0})`);
+  ctx.fillStyle = faceGrad;
+  ctx.beginPath();
+  ctx.arc(0, headY, headR, 0, Math.PI*2);
+  ctx.fill();
+  // Тень под подбородком
+  ctx.fillStyle = "rgba(30,25,15,0.4)";
+  ctx.beginPath();
+  ctx.ellipse(0, headY + headR*0.65, headR*0.7, headR*0.22, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Впадины глаз
+  ctx.fillStyle = "rgba(15,10,10,0.9)";
+  ctx.beginPath();
+  ctx.ellipse(-headR*0.33, headY - headR*0.15, headR*0.19, headR*0.16, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(headR*0.33, headY - headR*0.15, headR*0.19, headR*0.16, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Красные зрачки с пульсацией
+  const eyeGlow = 0.7 + Math.sin(gameTime * 4 + z.wobble) * 0.3;
+  for (const sx of [-1, 1]) {
+    const eg = ctx.createRadialGradient(sx*headR*0.33, headY - headR*0.15, 0, sx*headR*0.33, headY - headR*0.15, headR*0.12);
+    eg.addColorStop(0, `rgba(255,60,30,${eyeGlow})`);
+    eg.addColorStop(0.6, `rgba(200,20,10,${eyeGlow*0.6})`);
+    eg.addColorStop(1, "rgba(80,0,0,0)");
+    ctx.fillStyle = eg;
+    ctx.beginPath();
+    ctx.arc(sx*headR*0.33, headY - headR*0.15, headR*0.12, 0, Math.PI*2);
+    ctx.fill();
+    // яркая точка
+    ctx.fillStyle = `rgba(255,150,100,${eyeGlow})`;
+    ctx.beginPath();
+    ctx.arc(sx*headR*0.33, headY - headR*0.15, headR*0.04, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Рот — открытая пасть
+  ctx.fillStyle = "rgba(15,5,5,0.9)";
+  ctx.beginPath();
+  ctx.ellipse(0, headY + headR*0.32, headR*0.24, headR*0.15, 0, 0, Math.PI*2);
+  ctx.fill();
+  // Зубы
+  ctx.fillStyle = "rgba(210,200,160,0.9)";
+  for (let ti = -1; ti <= 1; ti++) {
+    ctx.fillRect(ti * headR*0.13 - 1.5, headY + headR*0.22, 3, headR*0.1);
+  }
+  // Кровь изо рта
+  ctx.fillStyle = `rgba(140,10,10,${z.blood*0.9})`;
+  ctx.beginPath();
+  ctx.ellipse(0, headY + headR*0.45, headR*0.08, headR*0.06, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Кровь на лице
+  ctx.fillStyle = `rgba(120,10,10,${z.blood*0.7})`;
+  ctx.beginPath();
+  ctx.ellipse(headR*0.45, headY + headR*0.05, headR*0.1, headR*0.28, 0.3, 0, Math.PI*2);
+  ctx.fill();
+
+  // Раны на голове
+  ctx.strokeStyle = `rgba(80,5,5,${z.blood})`;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-headR*0.5, headY - headR*0.4);
+  ctx.lineTo(-headR*0.3, headY - headR*0.1);
+  ctx.stroke();
+
+  ctx.restore();
+
+  // HP бар
+  if (z.hp < CFG.zombieHP) {
+    const bw = r*2, bh = 4;
+    const bx = x - r, by = y - r - 14;
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.fillRect(bx-1, by-1, bw+2, bh+2);
+    ctx.fillStyle = "#8a1a1a";
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = "#ff3333";
+    ctx.fillRect(bx, by, bw * (z.hp / CFG.zombieHP), bh);
+  }
+}
+
+/* ============================================================
+   РЕАЛИСТИЧНЫЙ ИГРОК
+============================================================ */
+function drawPlayer() {
+  const {x, y, r, facing, walkPhase, isMoving} = player;
+  const step = isMoving ? Math.sin(walkPhase) : 0;
+
+  // Тень
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.beginPath();
+  ctx.ellipse(x + 2, y + 6, r*1.05, r*0.85, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(facing + Math.PI/2);
+
+  // --- Ноги ---
+  const legSwing = step * 4.5;
+  for (const side of [-1, 1]) {
+    const lx = side * r * 0.32;
+    const ly = r * 0.55 + (side > 0 ? -legSwing : legSwing);
+    // Штаны — тактические
+    const pantsGrad = ctx.createLinearGradient(lx - r*0.2, ly, lx + r*0.2, ly + r*0.7);
+    pantsGrad.addColorStop(0, "#2a3a4a");
+    pantsGrad.addColorStop(0.5, "#1e2a38");
+    pantsGrad.addColorStop(1, "#141c26");
+    ctx.fillStyle = pantsGrad;
+    ctx.beginPath();
+    ctx.ellipse(lx, ly, r*0.25, r*0.7, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.5)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    // Ботинки
+    const bootGrad = ctx.createRadialGradient(lx - 2, ly + r*0.5, 0, lx, ly + r*0.6, r*0.35);
+    bootGrad.addColorStop(0, "#3a3a3a");
+    bootGrad.addColorStop(1, "#0a0a0a");
+    ctx.fillStyle = bootGrad;
+    ctx.beginPath();
+    ctx.ellipse(lx, ly + r*0.55, r*0.28, r*0.32, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Блик на ботинке
+    ctx.fillStyle = "rgba(200,200,200,0.25)";
+    ctx.beginPath();
+    ctx.ellipse(lx - 3, ly + r*0.45, r*0.08, r*0.1, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // --- Торс (тактическая куртка) ---
+  const bodyGrad = ctx.createRadialGradient(-r*0.3, -r*0.4, r*0.1, 0, 0, r*1.05);
+  bodyGrad.addColorStop(0, "#4a8a5a");
+  bodyGrad.addColorStop(0.5, "#2e5a3a");
+  bodyGrad.addColorStop(1, "#1a3a22");
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r*0.88, r*0.78, 0, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(10,20,15,0.8)";
+  ctx.lineWidth = 1.8; ctx.stroke();
+
+  // Разгрузка — ремни
+  ctx.strokeStyle = "#1a1a1a";
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(-r*0.55, -r*0.15);
+  ctx.lineTo(-r*0.5, r*0.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(r*0.55, -r*0.15);
+  ctx.lineTo(r*0.5, r*0.5);
+  ctx.stroke();
+  // Ремень через грудь
+  ctx.strokeStyle = "#3a2a1a";
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(-r*0.65, -r*0.35);
+  ctx.lineTo(r*0.65, r*0.35);
+  ctx.stroke();
+  // Застёжка
+  ctx.fillStyle = "#8a8a8a";
+  ctx.beginPath();
+  ctx.arc(0, -r*0.05, 3.5, 0, Math.PI*2);
+  ctx.fill();
+
+  // --- Руки ---
+  const armReach = r * 1.0;
+  // Левая рука (сзади)
+  const leftArmGrad = ctx.createLinearGradient(-r*0.7, -r*0.1, -r*0.6, -armReach*0.55);
+  leftArmGrad.addColorStop(0, "#3a6a4a");
+  leftArmGrad.addColorStop(1, "#2a4a35");
+  ctx.strokeStyle = leftArmGrad;
+  ctx.lineWidth = r*0.3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(-r*0.7, -r*0.1);
+  ctx.lineTo(-r*0.55, -armReach*0.55);
+  ctx.stroke();
+  // предплечье
+  ctx.strokeStyle = "#3d7a4d";
+  ctx.lineWidth = r*0.25;
+  ctx.beginPath();
+  ctx.moveTo(-r*0.55, -armReach*0.55);
+  ctx.lineTo(-r*0.15, -armReach*0.95);
+  ctx.stroke();
+  // кисть
+  ctx.fillStyle = "#c8a888";
+  ctx.beginPath();
+  ctx.arc(-r*0.15, -armReach*0.98, r*0.16, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(100,70,50,0.5)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Правая рука (на спусковом)
+  ctx.strokeStyle = "#3a6a4a";
+  ctx.lineWidth = r*0.3;
+  ctx.beginPath();
+  ctx.moveTo(r*0.7, -r*0.1);
+  ctx.lineTo(r*0.55, -armReach*0.55);
+  ctx.stroke();
+  ctx.strokeStyle = "#3d7a4d";
+  ctx.lineWidth = r*0.25;
+  ctx.beginPath();
+  ctx.moveTo(r*0.55, -armReach*0.55);
+  ctx.lineTo(r*0.2, -armReach*0.85);
+  ctx.stroke();
+  ctx.fillStyle = "#c8a888";
+  ctx.beginPath();
+  ctx.arc(r*0.2, -armReach*0.88, r*0.16, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(100,70,50,0.5)";
+  ctx.stroke();
+
+  // --- Оружие ---
+  drawWeaponInHands(r, armReach);
+
+  // --- Голова ---
+  const headR = r * 0.5;
+  const headY = -r * 0.2;
+  // Волосы
+  ctx.fillStyle = "#2a1f15";
+  ctx.beginPath();
+  ctx.arc(0, headY, headR * 1.03, 0, Math.PI*2);
+  ctx.fill();
+  // Пряди
+  ctx.strokeStyle = "#1a1208";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    const a = (i/5)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*headR*0.85, headY + Math.sin(a)*headR*0.85);
+    ctx.lineTo(Math.cos(a)*headR*1.05, headY + Math.sin(a)*headR*1.05);
+    ctx.stroke();
+  }
+  // Лицо
+  const faceGrad = ctx.createRadialGradient(-headR*0.25, headY - headR*0.3, headR*0.1, 0, headY, headR);
+  faceGrad.addColorStop(0, "#f0d8b8");
+  faceGrad.addColorStop(0.5, "#d8b898");
+  faceGrad.addColorStop(1, "#a07858");
+  ctx.fillStyle = faceGrad;
+  ctx.beginPath();
+  ctx.arc(0, headY, headR * 0.96, 0, Math.PI*2);
+  ctx.fill();
+  // Тень под подбородком
+  ctx.fillStyle = "rgba(80,50,30,0.4)";
+  ctx.beginPath();
+  ctx.ellipse(0, headY + headR*0.6, headR*0.7, headR*0.22, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Брови
+  ctx.strokeStyle = "#2a1f15";
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(-headR*0.5, headY - headR*0.28);
+  ctx.lineTo(-headR*0.15, headY - headR*0.33);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(headR*0.15, headY - headR*0.33);
+  ctx.lineTo(headR*0.5, headY - headR*0.28);
+  ctx.stroke();
+
+  // Глаза
+  for (const sx of [-1, 1]) {
+    // белок
+    ctx.fillStyle = "#f5eee0";
+    ctx.beginPath();
+    ctx.ellipse(sx*headR*0.32, headY - headR*0.05, headR*0.14, headR*0.16, 0, 0, Math.PI*2);
+    ctx.fill();
+    // радужка
+    ctx.fillStyle = "#3a6a5a";
+    ctx.beginPath();
+    ctx.arc(sx*headR*0.32, headY - headR*0.05, headR*0.09, 0, Math.PI*2);
+    ctx.fill();
+    // зрачок
+    ctx.fillStyle = "#0a0a0a";
+    ctx.beginPath();
+    ctx.arc(sx*headR*0.32, headY - headR*0.05, headR*0.045, 0, Math.PI*2);
+    ctx.fill();
+    // блик
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.beginPath();
+    ctx.arc(sx*headR*0.32 + 2, headY - headR*0.1, headR*0.04, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Нос
+  ctx.strokeStyle = "rgba(140,90,60,0.7)";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(0, headY + headR*0.05);
+  ctx.lineTo(0, headY + headR*0.28);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-headR*0.08, headY + headR*0.28);
+  ctx.lineTo(headR*0.08, headY + headR*0.28);
+  ctx.stroke();
+
+  // Рот
+  ctx.strokeStyle = "rgba(120,60,50,0.85)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, headY + headR*0.38, headR*0.22, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+
+  // Щетина (лёгкая тень)
+  ctx.fillStyle = "rgba(60,40,30,0.15)";
+  ctx.beginPath();
+  ctx.ellipse(0, headY + headR*0.55, headR*0.55, headR*0.25, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Аура бессмертия
+  if (godMode) {
+    const aura = ctx.createRadialGradient(x, y, r*0.5, x, y, r*2.8);
+    aura.addColorStop(0, "rgba(80,180,255,0)");
+    aura.addColorStop(0.6, "rgba(80,180,255,0.18)");
+    aura.addColorStop(1, "rgba(80,180,255,0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(x, y, r*2.8, 0, Math.PI*2);
+    ctx.fill();
+    const pulse = 1 + Math.sin(gameTime*3)*0.18;
+    ctx.strokeStyle = `rgba(120,220,255,${0.45 + Math.sin(gameTime*3)*0.25})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, r*1.7*pulse, 0, Math.PI*2);
+    ctx.stroke();
+  }
+}
+
+function drawWeaponInHands(r, armReach) {
+  const wIdx = currentWeaponIdx;
+  if (wIdx === 0) {
+    // Пистолет
+    const g = ctx.createLinearGradient(-r*0.1, -armReach*1.15, r*0.1, -armReach*1.15 + r*0.5);
+    g.addColorStop(0, "#4a4a4a"); g.addColorStop(0.5, "#2a2a2a"); g.addColorStop(1, "#1a1a1a");
+    ctx.fillStyle = g;
+    ctx.fillRect(-r*0.1, -armReach*1.15, r*0.2, r*0.5);
+    ctx.fillStyle = "#333";
+    ctx.fillRect(-r*0.08, -armReach*1.3, r*0.16, r*0.25);
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(-r*0.05, -armReach*1.38, r*0.1, r*0.1);
+    // блик
+    ctx.fillStyle = "rgba(255,255,255,0.3)";
+    ctx.fillRect(-r*0.08, -armReach*1.3, r*0.04, r*0.2);
+  } else if (wIdx === 1) {
+    // Дробовик
+    const g = ctx.createLinearGradient(-r*0.15, 0, r*0.15, 0);
+    g.addColorStop(0, "#5a3a1a"); g.addColorStop(0.5, "#4a2a10"); g.addColorStop(1, "#2a1a08");
+    ctx.fillStyle = g;
+    ctx.fillRect(-r*0.15, -armReach*0.5, r*0.3, r*1.3);
+    const g2 = ctx.createLinearGradient(-r*0.1, -armReach*1.5, r*0.1, -armReach*1.5);
+    g2.addColorStop(0, "#3a3a3a"); g2.addColorStop(0.5, "#1a1a1a"); g2.addColorStop(1, "#0a0a0a");
+    ctx.fillStyle = g2;
+    ctx.fillRect(-r*0.1, -armReach*1.5, r*0.2, r*0.6);
+    ctx.fillStyle = "#5a3a1a";
+    ctx.fillRect(-r*0.13, -armReach*0.9, r*0.26, r*0.3);
+    // блик
+    ctx.fillStyle = "rgba(255,255,255,0.2)";
+    ctx.fillRect(-r*0.08, -armReach*1.5, r*0.04, r*0.5);
+  } else {
+    // Пулемёт
+    const g = ctx.createLinearGradient(-r*0.2, 0, r*0.2, 0);
+    g.addColorStop(0, "#3a3a3a"); g.addColorStop(0.5, "#1a1a1a"); g.addColorStop(1, "#0a0a0a");
+    ctx.fillStyle = g;
+    ctx.fillRect(-r*0.2, -armReach*0.6, r*0.4, r*1.4);
+    ctx.fillStyle = "#111";
+    ctx.fillRect(-r*0.12, -armReach*1.6, r*0.24, r*0.8);
+    ctx.fillStyle = "#3a3a3a";
+    ctx.fillRect(-r*0.18, -armReach*0.3, r*0.2, r*0.5);
+    // сошки
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-r*0.15, -armReach*1.4);
+    ctx.lineTo(-r*0.35, -armReach*1.65);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(r*0.15, -armReach*1.4);
+    ctx.lineTo(r*0.35, -armReach*1.65);
+    ctx.stroke();
+    // блик
+    ctx.fillStyle = "rgba(255,255,255,0.15)";
+    ctx.fillRect(-r*0.1, -armReach*1.6, r*0.04, r*0.7);
+  }
+}
+
+/* ============================================================
+   МИНИ-КАРТА
+============================================================ */
+function drawMinimap() {
+  const mw = 110, mh = 110;
+  const mx = VW - mw - 15, my = 70;
+  const scaleX = mw / CFG.worldW, scaleY = mh / CFG.worldH;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(mx-2, my-2, mw+4, mh+4);
+  ctx.fillStyle = "rgba(20,40,15,0.9)";
+  ctx.fillRect(mx, my, mw, mh);
+  // здания
+  for (const b of buildings) {
+    ctx.fillStyle = "rgba(200,180,140,0.6)";
+    ctx.fillRect(mx + b.x*scaleX, my + b.y*scaleY, b.w*scaleX, b.h*scaleY);
+  }
+  // зомби
+  for (const z of zombies) {
+    ctx.fillStyle = "#ff3333";
+    ctx.fillRect(mx + z.x*scaleX - 1, my + z.y*scaleY - 1, 3, 3);
+  }
+  // игрок
+  ctx.fillStyle = godMode ? "#66ddff" : "#44aaff";
+  ctx.beginPath();
+  ctx.arc(mx + player.x*scaleX, my + player.y*scaleY, 4, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(120,200,120,0.5)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(mx, my, mw, mh);
+  ctx.restore();
+}
+
+/* ============================================================
+   ЦИКЛ
+============================================================ */
+let lastTime = 0;
+function loop(time) {
+  const dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+  if (gameRunning) update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function init() {
+  resize();
+  generateWorld();
+  resetGame();
+  lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
+
+document.getElementById("restartBtn").addEventListener("click", e => { e.stopPropagation(); resetGame(); });
+document.getElementById("gameOver").addEventListener("click", e => {
+  if (e.target === e.currentTarget || e.target.id === "restartBtn") resetGame();
+});
+window.addEventListener("contextmenu", e => e.preventDefault());
+init();
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+</script>
+</body>
+</html>
